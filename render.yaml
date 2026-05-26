@@ -1,0 +1,55 @@
+services:
+  - type: web
+    name: smartneighbor
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: APP_VERSION
+        value: 0.1.0
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SSL
+        value: "true"
+      - key: REDIS_URL
+        sync: false
+      - key: PAYPAL_MODE
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_RETURN_URL
+        sync: false
+      - key: PAYPAL_CANCEL_URL
+        sync: false
+      - key: BIT_MODE
+        value: simulator
+      - key: BIT_CLIENT_ID
+        sync: false
+      - key: BIT_CLIENT_SECRET
+        sync: false
+      - key: BIT_PAYMENT_PRODUCT
+        value: domestic-credit-transfers
+      - key: BIT_TPP_CERTIFICATE
+        sync: false
+      - key: BIT_PRIVATE_KEY
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_GRAPH_API_VERSION
+        value: v24.0
+      - key: WHATSAPP_DEFAULT_TO
+        value: "972525452532"

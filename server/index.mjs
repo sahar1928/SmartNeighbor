@@ -1,0 +1,288 @@
+import http from "node:http";
+import { readFile } from "node:fs/promises";
+import { extname, join, normalize, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { handleAgentMessage } from "./agent.mjs";
+import { captureBitPayment, createBitPayment, getBitConfig } from "./bit.mjs";
+import { communityPosts, getDashboard, getResidentAccount, items, payments, providers, recordResidentPayment, resetResidentDemoAccount, residents, tickets, votes } from "./data.mjs";
+import { capturePayPalOrder, createPayPalOrder, getPayPalConfig } from "./paypal.mjs";
+import { addLocalWhatsappMessage, handleIncomingWebhook, sendWhatsAppText, verifyWebhook, whatsappMessages } from "./whatsapp.mjs";
+
+const rootDir = fileURLToPath(new URL("..", import.meta.url));
+const publicDir = join(rootDir, "public");
+const port = Number(process.env.PORT ?? 3000);
+const startedAt = new Date().toISOString();
+
+const mimeTypes = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
+  ".svg": "image/svg+xml"
+};
+
+function json(res, statusCode, body) {
+  res.writeHead(statusCode, {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store"
+  });
+  res.end(JSON.stringify(body));
+}
+
+function getPublicOrigin(req, url) {
+  if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/$/, "");
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const proto = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
+  const protocol = proto || url.protocol.replace(":", "");
+  return `${protocol}://${url.host}`;
+}
+
+async function parseBody(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const raw = Buffer.concat(chunks).toString("utf8");
+  if (!raw) return {};
+  return JSON.parse(raw);
+}
+
+export async function handleApi(req, res, url) {
+  if (req.method === "GET" && url.pathname === "/api/health") {
+    return json(res, 200, {
+      status: "ok",
+      service: "smartneighbor",
+      version: process.env.APP_VERSION ?? "0.1.0",
+      startedAt
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/ready") {
+    return json(res, 200, {
+      status: "ready",
+      checks: {
+        http: "ok",
+        databaseConfigured: Boolean(process.env.DATABASE_URL),
+        redisConfigured: Boolean(process.env.REDIS_URL),
+        whatsappConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
+      }
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/dashboard") {
+    return json(res, 200, getDashboard());
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/me") {
+    const account = await getResidentAccount(url.searchParams.get("token"));
+    if (!account) return json(res, 403, { error: "invalid_magic_link" });
+    return json(res, 200, account);
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/residents") return json(res, 200, residents);
+  if (req.method === "GET" && url.pathname === "/api/payments") return json(res, 200, payments);
+  if (req.method === "GET" && url.pathname === "/api/tickets") return json(res, 200, tickets);
+  if (req.method === "GET" && url.pathname === "/api/providers") return json(res, 200, providers);
+  if (req.method === "GET" && url.pathname === "/api/community") return json(res, 200, communityPosts);
+  if (req.method === "GET" && url.pathname === "/api/items") return json(res, 200, items);
+  if (req.method === "GET" && url.pathname === "/api/votes") return json(res, 200, votes);
+  if (req.method === "GET" && url.pathname === "/api/whatsapp/messages") return json(res, 200, whatsappMessages);
+  if (req.method === "GET" && url.pathname === "/api/paypal/config") return json(res, 200, getPayPalConfig());
+  if (req.method === "GET" && url.pathname === "/api/bit/config") return json(res, 200, getBitConfig());
+
+  if (req.method === "POST" && url.pathname === "/api/whatsapp/local-message") {
+    try {
+      const body = await parseBody(req);
+      return json(res, 200, addLocalWhatsappMessage(body));
+    } catch (error) {
+      return json(res, 400, { error: "invalid_json", message: error.message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/whatsapp/send") {
+    try {
+      const body = await parseBody(req);
+      if (!body.text) return json(res, 400, { error: "missing_text" });
+      return json(res, 200, await sendWhatsAppText(body));
+    } catch (error) {
+      return json(res, 400, { error: "send_failed", message: error.message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/payments/demo-card") {
+    try {
+      const body = await parseBody(req);
+      if (!body.token) return json(res, 403, { error: "invalid_magic_link" });
+      if (!body.cardLast4) return json(res, 400, { error: "missing_demo_card" });
+      const result = await recordResidentPayment({
+        token: body.token,
+        amount: body.amount,
+        method: "paypal_demo_card",
+        providerReference: `DEMO-CARD-${body.cardLast4}-${Date.now()}`
+      });
+      if (!result) return json(res, 403, { error: "invalid_magic_link" });
+      return json(res, 200, { mode: "demo", captured: true, ...result });
+    } catch (error) {
+      return json(res, 400, { error: "payment_failed", message: error.message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/paypal/create-order") {
+    try {
+      const result = await createPayPalOrder(await parseBody(req));
+      return json(res, result.status, result.body);
+    } catch (error) {
+      return json(res, 502, { error: "paypal_create_failed", message: error.message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/paypal/capture-order") {
+    try {
+      const result = await capturePayPalOrder(await parseBody(req));
+      return json(res, result.status, result.body);
+    } catch (error) {
+      return json(res, 502, { error: "paypal_capture_failed", message: error.message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/bit/create-payment") {
+    try {
+      const result = await createBitPayment(await parseBody(req));
+      return json(res, result.status, result.body);
+    } catch (error) {
+      return json(res, 502, { error: "bit_create_failed", message: error.message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/bit/capture-payment") {
+    try {
+      const result = await captureBitPayment(await parseBody(req));
+      return json(res, result.status, result.body);
+    } catch (error) {
+      return json(res, 502, { error: "bit_capture_failed", message: error.message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/demo/reset-account") {
+    try {
+      const body = await parseBody(req);
+      if (!body.token) return json(res, 403, { error: "invalid_magic_link" });
+      const result = await resetResidentDemoAccount(body.token);
+      if (!result) return json(res, 403, { error: "invalid_magic_link" });
+      return json(res, 200, { reset: true, ...result });
+    } catch (error) {
+      return json(res, 400, { error: "reset_failed", message: error.message });
+    }
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/agent/message") {
+    try {
+      const body = await parseBody(req);
+      return json(res, 200, handleAgentMessage(body));
+    } catch (error) {
+      return json(res, 400, { error: "invalid_json", message: error.message });
+    }
+  }
+
+  return json(res, 404, { error: "not_found" });
+}
+
+async function handleWhatsappWebhook(req, res, url) {
+  if (req.method === "GET") {
+    const verification = verifyWebhook(url);
+    if (!verification.ok) {
+      res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+      res.end("Forbidden");
+      return;
+    }
+
+    res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+    res.end(verification.challenge);
+    return;
+  }
+
+  if (req.method === "POST") {
+    try {
+      const body = await parseBody(req);
+      const result = await handleIncomingWebhook(body);
+      return json(res, 200, result);
+    } catch (error) {
+      return json(res, 400, { error: "webhook_failed", message: error.message });
+    }
+  }
+
+  res.writeHead(405);
+  res.end("Method Not Allowed");
+}
+
+async function handlePayPalStart(req, res, url) {
+  const token = url.searchParams.get("rt") || url.searchParams.get("token") || "demo-danny-4b";
+  const amount = Number(url.searchParams.get("amount") || 1);
+  const encodedToken = encodeURIComponent(token);
+  const encodedAmount = encodeURIComponent(String(amount));
+  const origin = getPublicOrigin(req, url);
+
+  try {
+    const result = await createPayPalOrder({
+      token,
+      amount,
+      returnUrl: `${origin}/?rt=${encodedToken}&paypal=return&amount=${encodedAmount}#my-account`,
+      cancelUrl: `${origin}/?rt=${encodedToken}&paypal=cancel#my-account`
+    });
+
+    if (!result.ok) return json(res, result.status, result.body);
+
+    const approveLink = result.body.links?.find((link) => link.rel === "approve")?.href;
+    if (!approveLink) return json(res, 502, { error: "missing_paypal_approval_link", result: result.body });
+
+    res.writeHead(302, { location: approveLink });
+    res.end();
+  } catch (error) {
+    return json(res, 502, { error: "paypal_redirect_failed", message: error.message });
+  }
+}
+
+async function serveStatic(req, res, url) {
+  const requested = url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname);
+  const filePath = normalize(join(publicDir, requested));
+
+  if (!filePath.startsWith(publicDir)) {
+    res.writeHead(403);
+    res.end("Forbidden");
+    return;
+  }
+
+  try {
+    const content = await readFile(filePath);
+    res.writeHead(200, { "content-type": mimeTypes[extname(filePath)] ?? "application/octet-stream" });
+    res.end(content);
+  } catch {
+    const content = await readFile(join(publicDir, "index.html"));
+    res.writeHead(200, { "content-type": mimeTypes[".html"] });
+    res.end(content);
+  }
+}
+
+export function createServer() {
+  return http.createServer(async (req, res) => {
+    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+    if (url.pathname === "/webhooks/whatsapp") {
+      await handleWhatsappWebhook(req, res, url);
+      return;
+    }
+    if (url.pathname === "/paypal/start") {
+      await handlePayPalStart(req, res, url);
+      return;
+    }
+    if (url.pathname.startsWith("/api/")) {
+      await handleApi(req, res, url);
+      return;
+    }
+    await serveStatic(req, res, url);
+  });
+}
+
+if (process.argv[1] && resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1])) {
+  createServer().listen(port, () => {
+    console.log(`SmartNeighbor is running on http://localhost:${port}`);
+  });
+}

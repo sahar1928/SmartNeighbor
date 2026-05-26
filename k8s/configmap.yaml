@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smartneighbor-config
+  labels:
+    app.kubernetes.io/name: smartneighbor
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  APP_VERSION: "0.1.0"
+  PUBLIC_BASE_URL: ""
+  WHATSAPP_GRAPH_API_VERSION: "v24.0"
+  WHATSAPP_DEFAULT_TO: "972525452532"
+  REDIS_URL: "redis://smartneighbor-redis:6379"
+  PAYPAL_MODE: "sandbox"
+  BIT_MODE: "simulator"
+  BIT_PAYMENT_PRODUCT: "domestic-credit-transfers"

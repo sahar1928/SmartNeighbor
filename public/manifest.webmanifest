@@ -1,0 +1,36 @@
+{
+  "name": "SmartNeighbor",
+  "short_name": "SmartNeighbor",
+  "description": "ניהול ועד, תשלומים, תחזוקה וקהילה בבניין.",
+  "start_url": "/?token=demo-danny-4b#my-account",
+  "scope": "/",
+  "display": "standalone",
+  "dir": "rtl",
+  "lang": "he",
+  "orientation": "portrait",
+  "theme_color": "#0f766e",
+  "background_color": "#f6f7f4",
+  "categories": ["productivity", "finance", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/smartneighbor.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "החשבון שלי",
+      "url": "/?token=demo-danny-4b#my-account"
+    },
+    {
+      "name": "דיווח תקלה",
+      "url": "/?token=demo-danny-4b#quick-actions"
+    },
+    {
+      "name": "לוח קהילה",
+      "url": "/?token=demo-danny-4b#community"
+    }
+  ]
+}

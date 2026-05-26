@@ -1,0 +1,98 @@
+services:
+  smartneighbor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: smartneighbor:local
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: "production"
+      PORT: "3000"
+      APP_VERSION: "${APP_VERSION:-0.1.0}"
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-}"
+      DATABASE_URL: "postgres://smartneighbor:smartneighbor@postgres:5432/smartneighbor"
+      REDIS_URL: "redis://redis:6379"
+      WHATSAPP_VERIFY_TOKEN: "${WHATSAPP_VERIFY_TOKEN:-smartneighbor-dev-token}"
+      WHATSAPP_ACCESS_TOKEN: "${WHATSAPP_ACCESS_TOKEN:-}"
+      WHATSAPP_PHONE_NUMBER_ID: "${WHATSAPP_PHONE_NUMBER_ID:-}"
+      WHATSAPP_GRAPH_API_VERSION: "${WHATSAPP_GRAPH_API_VERSION:-v24.0}"
+      WHATSAPP_DEFAULT_TO: "${WHATSAPP_DEFAULT_TO:-972525452532}"
+      PAYPAL_MODE: "${PAYPAL_MODE:-sandbox}"
+      PAYPAL_CLIENT_ID: "${PAYPAL_CLIENT_ID:-}"
+      PAYPAL_CLIENT_SECRET: "${PAYPAL_CLIENT_SECRET:-}"
+      BIT_MODE: "${BIT_MODE:-simulator}"
+      BIT_CLIENT_ID: "${BIT_CLIENT_ID:-}"
+      BIT_CLIENT_SECRET: "${BIT_CLIENT_SECRET:-}"
+      BIT_PAYMENT_PRODUCT: "${BIT_PAYMENT_PRODUCT:-domestic-credit-transfers}"
+      BIT_TPP_CERTIFICATE: "${BIT_TPP_CERTIFICATE:-}"
+      BIT_PRIVATE_KEY: "${BIT_PRIVATE_KEY:-}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - smartneighbor
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: smartneighbor
+      POSTGRES_USER: smartneighbor
+      POSTGRES_PASSWORD: smartneighbor
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartneighbor -d smartneighbor"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - smartneighbor
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - smartneighbor
+
+  adminer:
+    image: adminer:4
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - smartneighbor
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  smartneighbor:
+    driver: bridge

@@ -1,0 +1,138 @@
+import pg from "pg";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const { Pool } = pg;
+const rootDir = fileURLToPath(new URL("..", import.meta.url));
+const databaseDir = join(rootDir, "database");
+const databaseUrl = process.env.DATABASE_URL ?? "";
+const useSsl = process.env.DATABASE_SSL === "true";
+
+export const dbEnabled = Boolean(databaseUrl);
+
+export const pool = dbEnabled
+  ? new Pool({
+      connectionString: databaseUrl,
+      ssl: useSsl ? { rejectUnauthorized: false } : false
+    })
+  : null;
+
+let migrationPromise = null;
+
+export async function query(text, params = []) {
+  if (!pool) throw new Error("DATABASE_URL is not configured");
+  await ensureDatabase();
+  return pool.query(text, params);
+}
+
+export async function transaction(callback) {
+  if (!pool) throw new Error("DATABASE_URL is not configured");
+  await ensureDatabase();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await callback(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function ensureDatabase() {
+  if (!pool) return;
+  if (!migrationPromise) migrationPromise = migrate();
+  await migrationPromise;
+}
+
+async function migrate() {
+  await bootstrapSchema();
+  await seedDatabaseIfEmpty();
+
+  await pool.query("ALTER TABLE residents ADD COLUMN IF NOT EXISTS access_token_hash TEXT");
+  await pool.query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS provider_reference TEXT");
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS resident_charges (
+      id TEXT PRIMARY KEY,
+      building_id TEXT NOT NULL REFERENCES buildings(id),
+      resident_id TEXT NOT NULL REFERENCES residents(id),
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('open', 'paid', 'void')),
+      due_date DATE NOT NULL,
+      category TEXT NOT NULL,
+      paid_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS resident_ledger (
+      id TEXT PRIMARY KEY,
+      resident_id TEXT NOT NULL REFERENCES residents(id),
+      type TEXT NOT NULL CHECK (type IN ('charge', 'payment', 'adjustment')),
+      title TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      provider_reference TEXT,
+      posted_at DATE NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  await pool.query(`
+    UPDATE residents
+    SET access_token_hash = CASE id
+      WHEN 'res-1' THEN 'demo-danny-4b'
+      WHEN 'res-2' THEN 'demo-sarah-4'
+      WHEN 'res-3' THEN 'demo-yossi-11'
+      WHEN 'res-4' THEN 'demo-michal-1a'
+      ELSE access_token_hash
+    END
+    WHERE access_token_hash IS NULL
+  `);
+
+  const chargeCount = await pool.query("SELECT count(*)::int AS count FROM resident_charges");
+  if (chargeCount.rows[0].count === 0) {
+    await pool.query(`
+      INSERT INTO resident_charges (id, building_id, resident_id, title, description, amount_cents, status, due_date, category)
+      VALUES
+        ('chg-1', 'bldg-rtl-24', 'res-1', 'ועד בית מאי 2026', 'דמי ועד חודשיים לדירה 4ב', 35000, 'open', '2026-05-10', 'monthly_fee'),
+        ('chg-2', 'bldg-rtl-24', 'res-1', 'השתתפות תיקון מעלית', 'חלוקת עלות תיקון חירום במעלית', 12000, 'open', '2026-06-01', 'maintenance'),
+        ('chg-3', 'bldg-rtl-24', 'res-2', 'ועד בית מאי 2026', 'דמי ועד חודשיים לדירה 4', 35000, 'paid', '2026-05-10', 'monthly_fee')
+      ON CONFLICT (id) DO NOTHING
+    `);
+  }
+
+  const ledgerCount = await pool.query("SELECT count(*)::int AS count FROM resident_ledger");
+  if (ledgerCount.rows[0].count === 0) {
+    await pool.query(`
+      INSERT INTO resident_ledger (id, resident_id, type, title, amount_cents, posted_at)
+      VALUES
+        ('led-1', 'res-1', 'charge', 'ועד בית מאי 2026', 35000, '2026-05-01'),
+        ('led-2', 'res-1', 'charge', 'השתתפות תיקון מעלית', 12000, '2026-05-22'),
+        ('led-3', 'res-2', 'charge', 'ועד בית מאי 2026', 35000, '2026-05-01'),
+        ('led-4', 'res-2', 'payment', 'תשלום Bit', -35000, '2026-05-03')
+      ON CONFLICT (id) DO NOTHING
+    `);
+  }
+}
+
+async function bootstrapSchema() {
+  const schemaPath = join(databaseDir, "schema.sql");
+  const schemaSql = await readFile(schemaPath, "utf8");
+  const idempotentSchema = schemaSql.replaceAll("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ");
+  await pool.query(idempotentSchema);
+}
+
+async function seedDatabaseIfEmpty() {
+  const count = await pool.query("SELECT count(*)::int AS count FROM buildings");
+  if (count.rows[0].count > 0) return;
+
+  const seedPath = join(databaseDir, "seed.sql");
+  const seedSql = await readFile(seedPath, "utf8");
+  await pool.query(seedSql);
+}

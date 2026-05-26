@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f766e">
+    <meta name="application-name" content="SmartNeighbor">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>SmartNeighbor</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icons/smartneighbor.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/smartneighbor.svg">
+    <link rel="stylesheet" href="/styles.css?v=payments4">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">SmartNeighbor</p>
+        <h1 id="buildingName">טוען בניין...</h1>
+      </div>
+      <nav aria-label="ניווט ראשי">
+        <a href="#dashboard">דאשבורד</a>
+        <a href="#my-account">החשבון שלי</a>
+        <a href="#whatsapp">WhatsApp</a>
+        <a href="#agent">Agent</a>
+        <a href="#maintenance">תחזוקה</a>
+        <a href="#community">קהילה</a>
+      </nav>
+      <button id="installButton" class="install-button" type="button" hidden>התקן אפליקציה</button>
+    </header>
+
+    <main>
+      <section id="dashboard" class="dashboard-grid">
+        <article class="metric">
+          <span>גבייה</span>
+          <strong id="collectionRate">--</strong>
+          <small>שולמו החודש</small>
+        </article>
+        <article class="metric">
+          <span>יתרה בקופה</span>
+          <strong id="balance">--</strong>
+          <small>כולל קרן חירום</small>
+        </article>
+        <article class="metric">
+          <span>תקלות פתוחות</span>
+          <strong id="openTickets">--</strong>
+          <small id="urgentTickets">--</small>
+        </article>
+        <article class="metric">
+          <span>דיירים פעילים</span>
+          <strong id="activeResidents">--</strong>
+          <small>מחוברים למערכת</small>
+        </article>
+      </section>
+
+      <section id="my-account" class="account-layout">
+        <div class="panel account-summary">
+          <div class="section-title">
+            <span class="icon">₪</span>
+            <h2>החשבון שלי</h2>
+          </div>
+          <div id="accountIdentity" class="identity-line">טוען פרטי דייר...</div>
+          <div class="balance-strip">
+            <div>
+              <span>לתשלום</span>
+              <strong id="myOpenBalance">--</strong>
+            </div>
+            <div>
+              <span>שולם השנה</span>
+              <strong id="myPaidTotal">--</strong>
+            </div>
+          </div>
+          <p class="summary">
+            זהו פורטל Magic Link: אין סיסמה ואין login. הקישור עצמו מזהה את הדייר ומציג רק את הפרטים שלו.
+          </p>
+          <div class="magic-link-box">
+            <span>קישור אישי לדמו</span>
+            <code id="magicLinkValue"></code>
+          </div>
+        </div>
+
+        <div class="panel payment-panel">
+          <div class="section-title">
+            <span class="icon">₪</span>
+            <h2>תשלום דיגיטלי</h2>
+          </div>
+          <p id="paypalConnectionStatus" class="summary"></p>
+          <p id="bitConnectionStatus" class="summary"></p>
+          <div class="payment-choice-box">
+            <span>סכום לתשלום עכשיו</span>
+            <strong id="paymentAmountLabel">--</strong>
+            <input id="demoAmount" type="hidden" value="1">
+          </div>
+          <div class="payment-actions" aria-label="בחירת אמצעי תשלום">
+            <button id="paypalPayButton" class="pay-button paypal" type="button">PayPal Sandbox</button>
+            <button id="bitPayButton" class="pay-button bit" type="button">BIT</button>
+          </div>
+          <button id="resetDemoAccountButton" class="ghost-button" type="button" hidden>איפוס חוב דמו לבדיקה נוספת</button>
+          <div class="paypal-test-card" aria-label="פרטי כרטיס בדיקה ל-PayPal Sandbox">
+            <span>כרטיס בדיקה ל-PayPal Sandbox</span>
+            <code>4580 4324 9043 8806</code>
+            <small>תוקף 12/2029 · CVC 684</small>
+          </div>
+          <p id="paymentStatus" class="payment-status"></p>
+        </div>
+      </section>
+
+      <section class="columns">
+        <div class="panel">
+          <div class="section-title">
+            <span class="icon">B</span>
+            <h2>חיובים פתוחים</h2>
+          </div>
+          <div id="myChargesList" class="stack"></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title">
+            <span class="icon">M</span>
+            <h2>תנועות אחרונות</h2>
+          </div>
+          <div id="myLedgerList" class="stack"></div>
+        </div>
+      </section>
+
+      <section class="workbench">
+        <div id="whatsapp" class="panel whatsapp-panel">
+          <div class="section-title">
+            <span class="icon">WA</span>
+            <h2>קבוצת WhatsApp חדשה</h2>
+          </div>
+          <div class="group-header">
+            <strong>בניין רוטשילד 24 · SmartNeighbor</strong>
+            <span class="badge blue">מוכן ל-webhook</span>
+          </div>
+          <div id="whatsappLog" class="chat-log whatsapp-log" aria-live="polite"></div>
+          <form id="whatsappForm" class="agent-form">
+            <input id="whatsappInput" type="text" placeholder="כתוב הודעה בשם דייר לקבוצה..." autocomplete="off">
+            <button type="submit">שלח</button>
+          </form>
+        </div>
+
+        <div class="panel attention">
+          <div class="section-title">
+            <span class="icon">!</span>
+            <h2>דורש תשומת לב</h2>
+          </div>
+          <ul id="attentionList"></ul>
+          <p id="agentSummary" class="summary"></p>
+        </div>
+      </section>
+
+      <section class="workbench">
+        <div id="agent" class="panel agent-panel">
+          <div class="section-title">
+            <span class="icon">AI</span>
+            <h2>SmartNeighbor Agent</h2>
+          </div>
+          <div id="chatLog" class="chat-log" aria-live="polite"></div>
+          <form id="agentForm" class="agent-form">
+            <input id="agentInput" type="text" placeholder="לדוגמה: יש ריח גז בחדר מדרגות בקומה ג'" autocomplete="off">
+            <button type="submit">שלח</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="section-title">
+            <span class="icon">D</span>
+            <h2>חיבור WhatsApp אמיתי</h2>
+          </div>
+          <ol class="setup-list">
+            <li>יוצרים Meta App עם WhatsApp Business Cloud API.</li>
+            <li>מגדירים Webhook URL אל <code>/webhooks/whatsapp</code>.</li>
+            <li>מגדירים ב-Docker את <code>WHATSAPP_ACCESS_TOKEN</code>, <code>WHATSAPP_PHONE_NUMBER_ID</code>, ו-<code>WHATSAPP_VERIFY_TOKEN</code>.</li>
+            <li>שולחים הודעה למספר העסקי ורואים אותה כאן.</li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="quick-actions" class="quick-actions">
+        <article class="panel action-panel">
+          <div class="section-title">
+            <span class="icon">QR</span>
+            <h2>דיווח תקלה מהיר</h2>
+          </div>
+          <form id="quickTicketForm" class="payment-form">
+            <label>
+              מיקום
+              <input id="quickTicketLocation" type="text" value="לובי">
+            </label>
+            <label>
+              תיאור התקלה
+              <input id="quickTicketText" type="text" placeholder="לדוגמה: נורה שרופה בכניסה">
+            </label>
+            <button type="submit">פתח טיוטת דיווח</button>
+          </form>
+          <p id="quickTicketStatus" class="payment-status"></p>
+        </article>
+
+        <article class="panel action-panel">
+          <div class="section-title">
+            <span class="icon">+</span>
+            <h2>הוספת חפץ לספרייה</h2>
+          </div>
+          <form id="quickItemForm" class="payment-form">
+            <label>
+              שם החפץ
+              <input id="quickItemName" type="text" placeholder="לדוגמה: מקדחה Bosch">
+            </label>
+            <label>
+              תנאי השאלה
+              <input id="quickItemNotes" type="text" placeholder="עד 3 ימים, להחזיר נקי">
+            </label>
+            <button type="submit">הוסף כטיוטה</button>
+          </form>
+          <p id="quickItemStatus" class="payment-status"></p>
+        </article>
+      </section>
+
+      <section id="maintenance" class="columns">
+        <div class="panel">
+          <div class="section-title">
+            <span class="icon">T</span>
+            <h2>קריאות תחזוקה</h2>
+          </div>
+          <div id="ticketList" class="stack"></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title">
+            <span class="icon">₪</span>
+            <h2>תשלומים</h2>
+          </div>
+          <div id="paymentList" class="stack"></div>
+        </div>
+      </section>
+
+      <section class="columns">
+        <div id="community" class="panel">
+          <div class="section-title">
+            <span class="icon">C</span>
+            <h2>לוח הקהילה</h2>
+          </div>
+          <div id="communityList" class="stack"></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title">
+            <span class="icon">L</span>
+            <h2>ספריית החפצים</h2>
+          </div>
+          <div id="itemList" class="stack"></div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="mobile-tabbar" aria-label="ניווט אפליקציה">
+      <a href="#my-account">חשבון</a>
+      <a href="#quick-actions">פעולות</a>
+      <a href="#whatsapp">צ׳אט</a>
+      <a href="#maintenance">תחזוקה</a>
+      <a href="#community">קהילה</a>
+    </nav>
+
+    <script src="/app.js?v=payments4" type="module"></script>
+  </body>
+</html>

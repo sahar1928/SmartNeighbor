@@ -1,0 +1,134 @@
+import { items, providers, residents } from "./data.mjs";
+
+const emergencyWords = ["גז", "שריפה", "עשן", "הצפה", "חשמל חשוף", "מסוכן", "פציעה"];
+const maintenanceWords = ["תקלה", "נזילה", "מעלית", "נורה", "לחות", "ריח", "חניון", "לובי", "חשמל", "מים", "ביוב"];
+const paymentWords = ["לשלם", "תשלום", "ועד", "חייב", "חוב", "שילמתי"];
+const borrowWords = ["להשאיל", "מלווה", "צריך", "לשאול", "מקדחה", "סולם"];
+const lendWords = ["יש לי", "מוסיף", "יכול להשאיל", "להשאלה"];
+const providerWords = ["ספק", "אינסטלטור", "חשמלאי", "גנן", "ניקיון", "טלפון"];
+
+function includesAny(text, words) {
+  return words.some((word) => text.includes(word));
+}
+
+function classifyPriority(text) {
+  if (includesAny(text, emergencyWords)) return "P0";
+  if (text.includes("דחוף") || text.includes("שוב") || text.includes("פעיל")) return "P1";
+  if (text.includes("נורה") || text.includes("ניקיון") || text.includes("גינון")) return "P2";
+  return "P3";
+}
+
+function extractLocation(text) {
+  const locations = ["חניון", "לובי", "גג", "חדר מדרגות", "חדר אשפה", "קומה ג", "קומה 3", "כניסה"];
+  return locations.find((location) => text.includes(location)) ?? "לא צוין";
+}
+
+function findItem(text) {
+  return items.find((item) => text.includes("מקדחה") && item.name.includes("מקדחה"))
+    ?? items.find((item) => text.includes("סולם") && item.name.includes("סולם"))
+    ?? items.find((item) => item.status === "available");
+}
+
+function findProvider(text) {
+  if (text.includes("אינסטלטור") || text.includes("גז") || text.includes("מים")) {
+    return providers.find((provider) => provider.domain.includes("אינסטלציה"));
+  }
+  if (text.includes("חשמל") || text.includes("חשמלאי")) {
+    return providers.find((provider) => provider.domain.includes("חשמל"));
+  }
+  if (text.includes("ניקיון")) {
+    return providers.find((provider) => provider.domain.includes("ניקיון"));
+  }
+  return providers[0];
+}
+
+export function handleAgentMessage({ message, residentId = "res-1" }) {
+  const text = String(message ?? "").trim();
+  const normalized = text.toLowerCase();
+  const resident = residents.find((entry) => entry.id === residentId) ?? residents[0];
+
+  if (!text) {
+    return {
+      intent: "smalltalk",
+      reply: "אפשר לכתוב לי על תשלום, תקלה, השאלת חפץ, ספק או פרסום לקהילה.",
+      actions: []
+    };
+  }
+
+  if (includesAny(normalized, paymentWords)) {
+    if (resident.balanceDue > 0) {
+      return {
+        intent: "payment_query",
+        reply: `מצאתי יתרה פתוחה לדירה ${resident.apartment}: ₪${resident.balanceDue}. אפשר לשלם עכשיו בכרטיס, Bit או העברה בנקאית.`,
+        actions: [
+          { type: "payment_link", label: "שלם עכשיו", url: `/pay/${resident.id}` },
+          { type: "remind_later", label: "תזכר לי מחר" }
+        ]
+      };
+    }
+
+    return {
+      intent: "payment_query",
+      reply: `החשבון של ${resident.name} מעודכן. אין חוב פתוח לחודש הנוכחי.`,
+      actions: []
+    };
+  }
+
+  if (includesAny(normalized, maintenanceWords) || includesAny(normalized, emergencyWords)) {
+    const priority = classifyPriority(normalized);
+    const location = extractLocation(normalized);
+    const provider = findProvider(normalized);
+    const emergency = priority === "P0";
+
+    return {
+      intent: emergency ? "emergency" : "maintenance_report",
+      reply: emergency
+        ? `זיהיתי דיווח חירום. פתחתי טיוטת קריאת P0, מיקום: ${location}. הוועד יקבל התראה מיידית והספק המומלץ הוא ${provider.name}.`
+        : `פתחתי טיוטת קריאת תחזוקה. מיקום: ${location}, עדיפות: ${priority}. לאישור סופי אפשר לצרף תמונה או לשלוח "אשר".`,
+      actions: [
+        { type: "ticket_draft", priority, location, providerId: provider.id },
+        ...(emergency ? [{ type: "notify_committee", channel: "whatsapp_sms" }] : [])
+      ]
+    };
+  }
+
+  if (includesAny(normalized, lendWords) && includesAny(normalized, borrowWords)) {
+    return {
+      intent: "lend_item",
+      reply: "מעולה. אוסיף את הפריט לספריית החפצים כטיוטה. כדי להשלים, כתוב לי לכמה ימים מותר להשאיל ומה התנאים.",
+      actions: [{ type: "item_draft" }]
+    };
+  }
+
+  if (includesAny(normalized, borrowWords)) {
+    const item = findItem(normalized);
+    if (!item) {
+      return {
+        intent: "borrow_item",
+        reply: "לא מצאתי כרגע פריט מתאים בספריית הבניין. אפשר לפרסם בקשה בלוח הקהילה.",
+        actions: [{ type: "community_post_draft" }]
+      };
+    }
+
+    return {
+      intent: "borrow_item",
+      reply: `מצאתי ${item.name} אצל ${item.owner} (דירה ${item.apartment}), סטטוס: ${item.status === "available" ? "זמין" : "לא זמין כרגע"}. לשלוח בקשת השאלה?`,
+      actions: [{ type: "borrow_request", itemId: item.id, owner: item.owner }]
+    };
+  }
+
+  if (includesAny(normalized, providerWords)) {
+    const provider = findProvider(normalized);
+    return {
+      intent: "provider_contact",
+      reply: `הספק המתאים הוא ${provider.name}, תחום: ${provider.domain}, טלפון: ${provider.phone}, דירוג: ${provider.rating}/5.`,
+      actions: [{ type: "provider_contact", providerId: provider.id }]
+    };
+  }
+
+  return {
+    intent: "community_post",
+    reply: "זה נשמע כמו הודעה קהילתית. האם לפרסם אותה גם בלוח הקהילה הרשמי?",
+    actions: [{ type: "community_post_draft", body: text }]
+  };
+}
