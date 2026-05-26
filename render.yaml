@@ -1,8 +1,15 @@
+databases:
+  - name: smartneighbor-db
+    plan: free
+    databaseName: smartneighbor
+    user: smartneighbor
+    postgresMajorVersion: "16"
+
 services:
   - type: web
     name: smartneighbor
-    env: docker
-    plan: starter
+    runtime: docker
+    plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
     autoDeploy: true
@@ -16,11 +23,13 @@ services:
       - key: PUBLIC_BASE_URL
         sync: false
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: smartneighbor-db
+          property: connectionString
       - key: DATABASE_SSL
         value: "true"
       - key: REDIS_URL
-        sync: false
+        value: ""
       - key: PAYPAL_MODE
         value: sandbox
       - key: PAYPAL_CLIENT_ID

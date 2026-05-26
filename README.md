@@ -2,6 +2,8 @@
 
 MVP runnable implementation for a WhatsApp-first building and community management platform.
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/sahar1928/SmartNeighbor)
+
 ## What is included
 
 - Hebrew RTL web dashboard for residents and committee members.

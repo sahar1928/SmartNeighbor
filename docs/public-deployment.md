@@ -29,17 +29,33 @@ The app is now prepared for non-local hosting:
 
 Render is the most straightforward path for a demo that friends can access.
 
+The repository includes a `render.yaml` Blueprint that creates:
+
+- a free Docker web service
+- a free Render PostgreSQL database
+- an automatic internal `DATABASE_URL`
+
+Fast path:
+
+1. Open the Deploy to Render button in `README.md`.
+2. Connect your GitHub account if Render asks.
+3. Select `sahar1928/SmartNeighbor`.
+4. Fill only the secret values you want to enable. For a basic public demo, PayPal and WhatsApp can stay empty.
+5. Deploy.
+
+Manual path:
+
 1. Push the repository to GitHub.
-2. Open Render and create a new Blueprint or Web Service from the repository.
-3. Use Docker environment.
-4. Add a managed PostgreSQL database.
+2. In Render, create a new Blueprint from the repository.
+3. Render reads `render.yaml`.
+4. Render creates the web service and Postgres database.
 5. Set environment variables:
 
 ```text
 NODE_ENV=production
 PORT=3000
 PUBLIC_BASE_URL=https://YOUR-APP.onrender.com
-DATABASE_URL=YOUR_RENDER_POSTGRES_INTERNAL_URL
+DATABASE_URL=created automatically from smartneighbor-db
 DATABASE_SSL=true
 PAYPAL_MODE=sandbox
 PAYPAL_CLIENT_ID=...
