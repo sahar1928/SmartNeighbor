@@ -3,10 +3,10 @@ VALUES ('bldg-rtl-24', 'בניין רוטשילד 24', 'רוטשילד 24, תל 
 
 INSERT INTO residents (id, building_id, name, apartment, floor, role, access_token_hash, consent_ai_processing)
 VALUES
-  ('res-1', 'bldg-rtl-24', 'דני לוי', '4ב', 2, 'resident', 'demo-danny-4b', true),
-  ('res-2', 'bldg-rtl-24', 'שרה כהן', '4', 2, 'resident', 'demo-sarah-4', true),
-  ('res-3', 'bldg-rtl-24', 'יוסי מזרחי', '11', 5, 'committee', 'demo-yossi-11', true),
-  ('res-4', 'bldg-rtl-24', 'מיכל ברק', '1א', 1, 'chair', 'demo-michal-1a', true);
+  ('res-1', 'bldg-rtl-24', 'דני לוי', '4ב', 2, 'resident', '9388541163130c8806b72ce24499dcb207b7add5086733fe94ebd54b6689318e', true),
+  ('res-2', 'bldg-rtl-24', 'שרה כהן', '4', 2, 'resident', 'b13eb94f039c0ff05cb61c8c02382f8de204803c4491551fe8a92352d3da3399', true),
+  ('res-3', 'bldg-rtl-24', 'יוסי מזרחי', '11', 5, 'committee', 'ff42c15780678723a45548704a78ee417d52c3643ebe2d9791c7122c32f54ecb', true),
+  ('res-4', 'bldg-rtl-24', 'מיכל ברק', '1א', 1, 'chair', 'c44b77ad87444bee4662906da01d2e62f2aef91fd3ee4cede9c09e966a9f1b8b', true);
 
 INSERT INTO providers (id, name, domain, phone, rating, avg_response_hours)
 VALUES

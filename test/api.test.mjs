@@ -193,3 +193,39 @@ test("paypal mock order can be created and captured", async () => {
     server.close();
   }
 });
+
+test("app config exposes production safety switches", async () => {
+  const server = createServer();
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/app/config`);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(typeof body.demoResetEnabled, "boolean");
+    assert.equal(Array.isArray(body.notifications), true);
+  } finally {
+    server.close();
+  }
+});
+
+test("committee endpoints enforce role-based access", async () => {
+  const server = createServer();
+  const port = await listen(server);
+  try {
+    const denied = await fetch(`http://127.0.0.1:${port}/api/committee/charges`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: "demo-danny-4b", residentId: "res-1", title: "בדיקה", description: "בדיקה", amount: 1, dueDate: "2026-06-01" })
+    });
+    assert.equal(denied.status, 403);
+
+    const allowed = await fetch(`http://127.0.0.1:${port}/api/committee/charges`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: "demo-yossi-11", residentId: "res-1", title: "בדיקה", description: "בדיקה", amount: 1, dueDate: "2026-06-01" })
+    });
+    assert.equal(allowed.status, 201);
+  } finally {
+    server.close();
+  }
+});

@@ -17,8 +17,11 @@ MVP runnable implementation for a WhatsApp-first building and community manageme
   - item lending
   - provider lookup
   - community posts
+- Optional OpenAI Agent adapter with conversation memory, confidence score, escalation actions, and audit log.
+- Role-protected committee API for residents, charges, payments, votes, expense approvals, providers, reminders, and audit viewing.
+- Production safety flags for demo reset, committee 2FA, hashed Magic Link support, and payment provider modes.
 - Dockerfile, Docker Compose, and Kubernetes manifests.
-- Node test coverage for the Agent and API handlers.
+- Node test coverage for the Agent, API handlers, payment flow, committee permissions, and browser shell assets.
 
 ## Submission Docs
 
@@ -27,6 +30,7 @@ For the three required project stages, use these documents:
 - [Stage 1 - Market Research](docs/01-market-research.md)
 - [Stage 2 - Functional Spec Addendum](docs/02-functional-spec-addendum.md)
 - [Stage 3 - Docker and Kubernetes Delivery](docs/03-docker-kubernetes-delivery.md)
+- [Final Submission](FINAL_SUBMISSION.md)
 - [Project Submission Review](docs/project-submission-review.md)
 - [Demo Script](docs/demo-script.md)
 - [Public Deployment Guide](docs/public-deployment.md)
@@ -148,6 +152,27 @@ CVC: 684
 ```
 
 The app does not collect card details directly. Use this card only inside the PayPal Sandbox checkout page after clicking `PayPal Sandbox`.
+
+## Production switches
+
+For local demos, `.env.example` keeps demo helpers enabled. For Render/Kubernetes production-style deployment, use `.env.production.example` and keep:
+
+```text
+ENABLE_DEMO_RESET=false
+NODE_ENV=production
+PAYPAL_MODE=sandbox
+BIT_MODE=simulator
+```
+
+Optional real integrations:
+
+```text
+COMMITTEE_2FA_CODE=choose-a-private-code
+OPENAI_API_KEY=your-openai-key
+OPENAI_MODEL=gpt-5.1
+```
+
+Committee endpoints require a committee/chair Magic Link token and, when `COMMITTEE_2FA_CODE` is configured, a matching `twoFactorCode` value.
 
 ## PWA App
 

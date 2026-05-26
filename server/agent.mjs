@@ -1,4 +1,6 @@
 import { items, providers, residents } from "./data.mjs";
+import { recordAudit } from "./audit.mjs";
+import { classifyWithOpenAI } from "./openai-agent.mjs";
 
 const emergencyWords = ["גז", "שריפה", "עשן", "הצפה", "חשמל חשוף", "מסוכן", "פציעה"];
 const maintenanceWords = ["תקלה", "נזילה", "מעלית", "נורה", "לחות", "ריח", "חניון", "לובי", "חשמל", "מים", "ביוב"];
@@ -131,4 +133,49 @@ export function handleAgentMessage({ message, residentId = "res-1" }) {
     reply: "זה נשמע כמו הודעה קהילתית. האם לפרסם אותה גם בלוח הקהילה הרשמי?",
     actions: [{ type: "community_post_draft", body: text }]
   };
+}
+
+export async function handleAgentMessageAsync({ message, residentId = "res-1" }) {
+  try {
+    const ai = await classifyWithOpenAI({ message, residentId });
+    if (ai) {
+      const result = {
+        intent: ai.intent,
+        confidence: ai.confidence,
+        urgency: ai.urgency,
+        reply: ai.reply_hebrew,
+        actions: ai.confidence < 0.7 ? [{ type: "escalate_to_committee", reason: "low_confidence" }] : []
+      };
+      await recordAudit({
+        actorId: residentId,
+        action: "agent_decision",
+        entityType: "agent",
+        entityId: `agent-${Date.now()}`,
+        metadata: { provider: "openai", intent: result.intent, confidence: result.confidence, urgency: result.urgency }
+      });
+      return result;
+    }
+  } catch (error) {
+    await recordAudit({
+      actorId: residentId,
+      action: "agent_ai_fallback",
+      entityType: "agent",
+      entityId: `agent-${Date.now()}`,
+      metadata: { message: error.message }
+    });
+  }
+
+  const result = handleAgentMessage({ message, residentId });
+  result.confidence = result.intent === "community_post" ? 0.55 : 0.86;
+  if (result.confidence < 0.7) {
+    result.actions.push({ type: "escalate_to_committee", reason: "low_confidence" });
+  }
+  await recordAudit({
+    actorId: residentId,
+    action: "agent_decision",
+    entityType: "agent",
+    entityId: `agent-${Date.now()}`,
+    metadata: { provider: "rules", intent: result.intent, confidence: result.confidence }
+  });
+  return result;
 }

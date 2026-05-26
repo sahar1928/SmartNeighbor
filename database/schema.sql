@@ -20,6 +20,9 @@ CREATE TABLE residents (
   phone TEXT,
   email TEXT,
   access_token_hash TEXT,
+  token_expires_at TIMESTAMPTZ,
+  token_rotated_at TIMESTAMPTZ,
+  two_factor_enabled BOOLEAN NOT NULL DEFAULT false,
   consent_ai_processing BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

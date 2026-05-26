@@ -53,7 +53,16 @@ async function migrate() {
   await bootstrapSchema();
   await seedDatabaseIfEmpty();
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      id TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
   await pool.query("ALTER TABLE residents ADD COLUMN IF NOT EXISTS access_token_hash TEXT");
+  await pool.query("ALTER TABLE residents ADD COLUMN IF NOT EXISTS token_expires_at TIMESTAMPTZ");
+  await pool.query("ALTER TABLE residents ADD COLUMN IF NOT EXISTS token_rotated_at TIMESTAMPTZ");
+  await pool.query("ALTER TABLE residents ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN NOT NULL DEFAULT false");
   await pool.query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS provider_reference TEXT");
   await pool.query(`
     CREATE TABLE IF NOT EXISTS resident_charges (
@@ -86,13 +95,14 @@ async function migrate() {
   await pool.query(`
     UPDATE residents
     SET access_token_hash = CASE id
-      WHEN 'res-1' THEN 'demo-danny-4b'
-      WHEN 'res-2' THEN 'demo-sarah-4'
-      WHEN 'res-3' THEN 'demo-yossi-11'
-      WHEN 'res-4' THEN 'demo-michal-1a'
+      WHEN 'res-1' THEN '9388541163130c8806b72ce24499dcb207b7add5086733fe94ebd54b6689318e'
+      WHEN 'res-2' THEN 'b13eb94f039c0ff05cb61c8c02382f8de204803c4491551fe8a92352d3da3399'
+      WHEN 'res-3' THEN 'ff42c15780678723a45548704a78ee417d52c3643ebe2d9791c7122c32f54ecb'
+      WHEN 'res-4' THEN 'c44b77ad87444bee4662906da01d2e62f2aef91fd3ee4cede9c09e966a9f1b8b'
       ELSE access_token_hash
     END
     WHERE access_token_hash IS NULL
+       OR access_token_hash IN ('demo-danny-4b', 'demo-sarah-4', 'demo-yossi-11', 'demo-michal-1a')
   `);
 
   const chargeCount = await pool.query("SELECT count(*)::int AS count FROM resident_charges");
@@ -119,6 +129,12 @@ async function migrate() {
       ON CONFLICT (id) DO NOTHING
     `);
   }
+
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_residents_access_token_hash ON residents(access_token_hash)");
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_payments_resident_status ON payments(resident_id, status)");
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_charges_resident_status ON resident_charges(resident_id, status)");
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_ledger_resident_posted ON resident_ledger(resident_id, posted_at DESC)");
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_log(created_at DESC)");
 }
 
 async function bootstrapSchema() {

@@ -9,6 +9,8 @@ data:
   PORT: "3000"
   APP_VERSION: "0.1.1"
   PUBLIC_BASE_URL: ""
+  ENABLE_DEMO_RESET: "false"
+  OPENAI_MODEL: "gpt-5.1"
   WHATSAPP_GRAPH_API_VERSION: "v24.0"
   WHATSAPP_DEFAULT_TO: "972525452532"
   REDIS_URL: "redis://smartneighbor-redis:6379"

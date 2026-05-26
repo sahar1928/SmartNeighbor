@@ -2,10 +2,13 @@ import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { handleAgentMessage } from "./agent.mjs";
+import { handleAgentMessageAsync } from "./agent.mjs";
+import { listAuditEvents } from "./audit.mjs";
 import { captureBitPayment, createBitPayment, getBitConfig } from "./bit.mjs";
-import { communityPosts, getDashboard, getResidentAccount, items, payments, providers, recordResidentPayment, resetResidentDemoAccount, residents, tickets, votes } from "./data.mjs";
+import { communityPosts, createProvider, createResident, createResidentCharge, createVote, approveExpense, getDashboard, getResidentAccount, items, payments, providers, recordResidentPayment, resetResidentDemoAccount, residents, tickets, updatePaymentStatus, votes } from "./data.mjs";
+import { listNotifications, queuePaymentReminder } from "./notifications.mjs";
 import { capturePayPalOrder, createPayPalOrder, getPayPalConfig } from "./paypal.mjs";
+import { demoResetEnabled, requireRole } from "./security.mjs";
 import { addLocalWhatsappMessage, handleIncomingWebhook, sendWhatsAppText, verifyWebhook, whatsappMessages } from "./whatsapp.mjs";
 
 const rootDir = fileURLToPath(new URL("..", import.meta.url));
@@ -68,6 +71,15 @@ export async function handleApi(req, res, url) {
     });
   }
 
+  if (req.method === "GET" && url.pathname === "/api/app/config") {
+    return json(res, 200, {
+      demoResetEnabled,
+      openAiConfigured: Boolean(process.env.OPENAI_API_KEY),
+      notifications: ["in_app", "whatsapp_mock"],
+      committee2faRequired: Boolean(process.env.COMMITTEE_2FA_CODE)
+    });
+  }
+
   if (req.method === "GET" && url.pathname === "/api/dashboard") {
     return json(res, 200, getDashboard());
   }
@@ -88,11 +100,12 @@ export async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/whatsapp/messages") return json(res, 200, whatsappMessages);
   if (req.method === "GET" && url.pathname === "/api/paypal/config") return json(res, 200, getPayPalConfig());
   if (req.method === "GET" && url.pathname === "/api/bit/config") return json(res, 200, getBitConfig());
+  if (req.method === "GET" && url.pathname === "/api/notifications") return json(res, 200, listNotifications());
 
   if (req.method === "POST" && url.pathname === "/api/whatsapp/local-message") {
     try {
       const body = await parseBody(req);
-      return json(res, 200, addLocalWhatsappMessage(body));
+      return json(res, 200, await addLocalWhatsappMessage(body));
     } catch (error) {
       return json(res, 400, { error: "invalid_json", message: error.message });
     }
@@ -163,6 +176,7 @@ export async function handleApi(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/demo/reset-account") {
+    if (!demoResetEnabled) return json(res, 403, { error: "demo_reset_disabled" });
     try {
       const body = await parseBody(req);
       if (!body.token) return json(res, 403, { error: "invalid_magic_link" });
@@ -177,9 +191,48 @@ export async function handleApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/agent/message") {
     try {
       const body = await parseBody(req);
-      return json(res, 200, handleAgentMessage(body));
+      return json(res, 200, await handleAgentMessageAsync(body));
     } catch (error) {
       return json(res, 400, { error: "invalid_json", message: error.message });
+    }
+  }
+
+  if (url.pathname.startsWith("/api/committee/")) {
+    try {
+      const body = req.method === "GET" ? {} : await parseBody(req);
+      const auth = await requireRole({
+        token: body.token || url.searchParams.get("token"),
+        roles: ["committee", "chair"],
+        twoFactorCode: body.twoFactorCode || req.headers["x-2fa-code"]
+      });
+      if (!auth.ok) return json(res, auth.status, auth.body);
+
+      if (req.method === "POST" && url.pathname === "/api/committee/residents") {
+        return json(res, 201, await createResident({ actorId: auth.user.id, ...body }));
+      }
+      if (req.method === "POST" && url.pathname === "/api/committee/charges") {
+        return json(res, 201, await createResidentCharge({ actorId: auth.user.id, ...body }));
+      }
+      if (req.method === "POST" && url.pathname === "/api/committee/payments/status") {
+        return json(res, 200, await updatePaymentStatus({ actorId: auth.user.id, ...body }));
+      }
+      if (req.method === "POST" && url.pathname === "/api/committee/votes") {
+        return json(res, 201, await createVote({ actorId: auth.user.id, ...body }));
+      }
+      if (req.method === "POST" && url.pathname === "/api/committee/expenses/approve") {
+        return json(res, 201, await approveExpense({ actorId: auth.user.id, ...body }));
+      }
+      if (req.method === "POST" && url.pathname === "/api/committee/providers") {
+        return json(res, 201, await createProvider({ actorId: auth.user.id, ...body }));
+      }
+      if (req.method === "POST" && url.pathname === "/api/committee/notifications/payment-reminder") {
+        return json(res, 201, await queuePaymentReminder({ resident: { id: body.residentId, apartment: body.apartment ?? "לא צוין" }, amount: body.amount }));
+      }
+      if (req.method === "GET" && url.pathname === "/api/committee/audit") {
+        return json(res, 200, await listAuditEvents());
+      }
+    } catch (error) {
+      return json(res, 400, { error: "committee_action_failed", message: error.message });
     }
   }
 

@@ -3,6 +3,7 @@ const searchParams = new URLSearchParams(window.location.search);
 const residentToken = searchParams.get("rt") || searchParams.get("token") || localStorage.getItem("smartneighbor_token") || "demo-danny-4b";
 localStorage.setItem("smartneighbor_token", residentToken);
 let deferredInstallPrompt = null;
+let appConfig = { demoResetEnabled: false };
 
 async function api(path, options) {
   const response = await fetch(path, {
@@ -114,6 +115,11 @@ async function loadDashboard() {
   document.querySelector("#attentionList").replaceChildren(...attentionItems);
 }
 
+async function loadAppConfig() {
+  appConfig = await api("/api/app/config");
+  return appConfig;
+}
+
 async function loadMyAccount() {
   const account = await api(`/api/me?token=${encodeURIComponent(residentToken)}`);
   text("#accountIdentity", `${account.resident.name} · דירה ${account.resident.apartment} · קומה ${account.resident.floor}`);
@@ -126,7 +132,7 @@ async function loadMyAccount() {
   const hasOpenBalance = payableAmount > 0;
   document.querySelector("#paypalPayButton").disabled = !hasOpenBalance;
   document.querySelector("#bitPayButton").disabled = !hasOpenBalance;
-  document.querySelector("#resetDemoAccountButton").hidden = hasOpenBalance;
+  document.querySelector("#resetDemoAccountButton").hidden = hasOpenBalance || !appConfig.demoResetEnabled;
   if (!hasOpenBalance && !document.querySelector("#paymentStatus").textContent) {
     text("#paymentStatus", "אין חוב פתוח כרגע. אפשר לאפס את הדמו כדי לבדוק תשלום נוסף.");
   }
@@ -395,6 +401,8 @@ document.querySelector("#quickItemForm").addEventListener("submit", async (event
 });
 
 addBubble("agent", "שלום, אני SmartNeighbor Agent. אפשר לשאול על תשלום, לדווח תקלה, לבקש חפץ או למצוא ספק.");
+
+await loadAppConfig().catch(() => {});
 
 const initialLoads = await Promise.allSettled([
   loadDashboard(),

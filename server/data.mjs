@@ -1,4 +1,6 @@
 import { dbEnabled, query, transaction } from "./db.mjs";
+import { recordAudit } from "./audit.mjs";
+import { generateMagicToken, hashToken } from "./tokens.mjs";
 
 export const buildings = [
   {
@@ -145,6 +147,19 @@ export function findResidentByToken(token) {
   return residents.find((resident) => resident.accessToken === token);
 }
 
+export async function getResidentByToken(token) {
+  if (!dbEnabled) return findResidentByToken(token) ?? null;
+  const tokenHash = hashToken(token);
+  const result = await query(
+    `SELECT id, name, apartment, floor, role
+     FROM residents
+     WHERE access_token_hash IN ($1, $2)
+       AND (token_expires_at IS NULL OR token_expires_at > now())`,
+    [tokenHash, token]
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function getResidentAccount(token) {
   if (dbEnabled) return getResidentAccountFromDb(token);
 
@@ -179,6 +194,86 @@ export async function getResidentAccount(token) {
     payments: residentPayments,
     ledger
   };
+}
+
+export async function createResident({ actorId, name, apartment, floor = null, role = "resident", phone = null, email = null }) {
+  const id = `res-${Date.now()}`;
+  const accessToken = generateMagicToken();
+  const accessTokenHash = hashToken(accessToken);
+
+  if (dbEnabled) {
+    await query(
+      `INSERT INTO residents (id, building_id, name, apartment, floor, role, phone, email, access_token_hash, consent_ai_processing)
+       VALUES ($1, 'bldg-rtl-24', $2, $3, $4, $5, $6, $7, $8, false)`,
+      [id, name, apartment, floor, role, phone, email, accessTokenHash]
+    );
+  } else {
+    residents.push({ id, name, apartment, floor, role, phone, email, paidCurrentMonth: false, balanceDue: 0, accessToken });
+  }
+
+  await recordAudit({ actorId, action: "resident_created", entityType: "resident", entityId: id, metadata: { apartment, role } });
+  return { id, name, apartment, floor, role, phone, email, accessToken };
+}
+
+export async function createResidentCharge({ actorId, residentId, title, description, amount, dueDate, category = "manual" }) {
+  const id = `chg-${Date.now()}`;
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) throw new Error("Invalid charge amount");
+
+  if (dbEnabled) {
+    await query(
+      `INSERT INTO resident_charges (id, building_id, resident_id, title, description, amount_cents, status, due_date, category)
+       VALUES ($1, 'bldg-rtl-24', $2, $3, $4, $5, 'open', $6, $7)`,
+      [id, residentId, title, description, Math.round(numericAmount * 100), dueDate, category]
+    );
+    await query(
+      `INSERT INTO resident_ledger (id, resident_id, type, title, amount_cents, posted_at)
+       VALUES ($1, $2, 'charge', $3, $4, CURRENT_DATE)`,
+      [`led-${Date.now()}`, residentId, title, Math.round(numericAmount * 100)]
+    );
+  } else {
+    charges.push({ id, residentId, title, description, amount: numericAmount, status: "open", dueDate, category });
+    residentLedger.push({ id: `led-${Date.now()}`, residentId, type: "charge", title, amount: numericAmount, date: new Date().toISOString().slice(0, 10) });
+  }
+
+  await recordAudit({ actorId, action: "charge_created", entityType: "resident_charge", entityId: id, metadata: { residentId, amount: numericAmount } });
+  return { id, residentId, title, description, amount: numericAmount, status: "open", dueDate, category };
+}
+
+export async function updatePaymentStatus({ actorId, paymentId, status }) {
+  if (!["pending", "paid", "late", "failed"].includes(status)) throw new Error("Invalid payment status");
+  if (dbEnabled) {
+    await query(`UPDATE payments SET status = $1 WHERE id = $2`, [status, paymentId]);
+  } else {
+    const payment = payments.find((entry) => entry.id === paymentId);
+    if (payment) payment.status = status;
+  }
+  await recordAudit({ actorId, action: "payment_status_updated", entityType: "payment", entityId: paymentId, metadata: { status } });
+  return { id: paymentId, status };
+}
+
+export async function createVote({ actorId, title, options = [], quorum = 1, closesAt }) {
+  const id = `vote-${Date.now()}`;
+  const vote = { id, title, options: options.map((label) => ({ label, votes: 0 })), quorum, closesAt, status: "open" };
+  votes.push(vote);
+  await recordAudit({ actorId, action: "vote_created", entityType: "vote", entityId: id, metadata: { options, quorum, closesAt } });
+  return vote;
+}
+
+export async function approveExpense({ actorId, title, amount, providerId = null }) {
+  const id = `expense-${Date.now()}`;
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) throw new Error("Invalid expense amount");
+  await recordAudit({ actorId, action: "expense_approved", entityType: "expense", entityId: id, metadata: { title, amount: numericAmount, providerId } });
+  return { id, title, amount: numericAmount, providerId, status: "approved" };
+}
+
+export async function createProvider({ actorId, name, domain, phone }) {
+  const id = `prov-${Date.now()}`;
+  const provider = { id, name, domain, phone, rating: 0, avgResponseHours: 0 };
+  providers.push(provider);
+  await recordAudit({ actorId, action: "provider_created", entityType: "provider", entityId: id, metadata: { domain } });
+  return provider;
 }
 
 export async function recordResidentPayment({ token, amount, method, providerReference = null }) {
@@ -260,11 +355,13 @@ export async function resetResidentDemoAccount(token) {
 }
 
 async function getResidentAccountFromDb(token) {
+  const tokenHash = hashToken(token);
   const residentResult = await query(
     `SELECT id, name, apartment, floor, role
      FROM residents
-     WHERE access_token_hash = $1`,
-    [token]
+     WHERE access_token_hash IN ($1, $2)
+       AND (token_expires_at IS NULL OR token_expires_at > now())`,
+    [tokenHash, token]
   );
   const resident = residentResult.rows[0];
   if (!resident) return null;
@@ -341,9 +438,12 @@ async function recordResidentPaymentInDb({ token, amount, method, providerRefere
   const ledgerId = `led-${Date.now()}`;
 
   await transaction(async (client) => {
+    const tokenHash = hashToken(token);
     const residentResult = await client.query(
-      `SELECT id, name FROM residents WHERE access_token_hash = $1`,
-      [token]
+      `SELECT id, name FROM residents
+       WHERE access_token_hash IN ($1, $2)
+         AND (token_expires_at IS NULL OR token_expires_at > now())`,
+      [tokenHash, token]
     );
     const resident = residentResult.rows[0];
     if (!resident) throw new Error("Invalid magic link");
@@ -404,9 +504,12 @@ async function recordResidentPaymentInDb({ token, amount, method, providerRefere
 
 async function resetResidentDemoAccountInDb(token) {
   await transaction(async (client) => {
+    const tokenHash = hashToken(token);
     const residentResult = await client.query(
-      `SELECT id FROM residents WHERE access_token_hash = $1`,
-      [token]
+      `SELECT id FROM residents
+       WHERE access_token_hash IN ($1, $2)
+         AND (token_expires_at IS NULL OR token_expires_at > now())`,
+      [tokenHash, token]
     );
     const resident = residentResult.rows[0];
     if (!resident) throw new Error("Invalid magic link");

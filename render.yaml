@@ -22,6 +22,14 @@ services:
         value: 0.1.1
       - key: PUBLIC_BASE_URL
         value: https://smartneighbor.onrender.com
+      - key: ENABLE_DEMO_RESET
+        value: "false"
+      - key: COMMITTEE_2FA_CODE
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5.1
       - key: DATABASE_URL
         fromDatabase:
           name: smartneighbor-db

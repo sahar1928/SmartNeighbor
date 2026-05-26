@@ -1,4 +1,4 @@
-import { handleAgentMessage } from "./agent.mjs";
+import { handleAgentMessageAsync } from "./agent.mjs";
 
 const graphApiVersion = process.env.WHATSAPP_GRAPH_API_VERSION ?? "v24.0";
 const accessToken = process.env.WHATSAPP_ACCESS_TOKEN ?? "";
@@ -135,7 +135,7 @@ export async function handleIncomingWebhook(payload) {
 
   for (const message of incoming) {
     addMessage({ ...message, direction: "inbound" });
-    const agentResult = handleAgentMessage({ message: message.text, residentId: "res-1" });
+    const agentResult = await handleAgentMessageAsync({ message: message.text, residentId: "res-1" });
     const delivery = await sendWhatsAppText({ to: message.from, text: agentResult.reply });
     replies.push({ inbound: message, agent: agentResult, delivery });
   }
@@ -143,7 +143,7 @@ export async function handleIncomingWebhook(payload) {
   return { received: incoming.length, replies };
 }
 
-export function addLocalWhatsappMessage({ text, from = "דייר חדש", to = "קבוצת בניין רוטשילד 24" }) {
+export async function addLocalWhatsappMessage({ text, from = "דייר חדש", to = "קבוצת בניין רוטשילד 24" }) {
   const inbound = addMessage({
     direction: "inbound",
     from,
@@ -151,7 +151,7 @@ export function addLocalWhatsappMessage({ text, from = "דייר חדש", to = "
     text,
     source: "local"
   });
-  const agent = handleAgentMessage({ message: text, residentId: "res-1" });
+  const agent = await handleAgentMessageAsync({ message: text, residentId: "res-1" });
   const outbound = addMessage({
     direction: "outbound",
     from: "SmartNeighbor Agent",
