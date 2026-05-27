@@ -136,22 +136,41 @@ export function handleAgentMessage({ message, residentId = "res-1" }) {
 }
 
 export async function handleAgentMessageAsync({ message, residentId = "res-1" }) {
+  const rulesResult = handleAgentMessage({ message, residentId });
+  const rulesConfidence = rulesResult.intent === "community_post" ? 0.55 : 0.9;
+
   try {
     const ai = await classifyWithOpenAI({ message, residentId });
     if (ai) {
+      const rulesFoundSpecificIntent = !["community_post", "smalltalk"].includes(rulesResult.intent);
+      const aiMissedSpecificIntent = ["community_post", "smalltalk"].includes(ai.intent);
+      const useRulesGuard = rulesFoundSpecificIntent && (aiMissedSpecificIntent || Number(ai.confidence) < 0.82);
+      const selected = useRulesGuard
+        ? { ...rulesResult, confidence: Math.max(rulesConfidence, 0.9), urgency: rulesResult.intent === "emergency" ? "critical" : "medium" }
+        : {
+            intent: ai.intent,
+            confidence: ai.confidence,
+            urgency: ai.urgency,
+            reply: ai.reply_hebrew,
+            actions: ai.confidence < 0.7 ? [{ type: "escalate_to_committee", reason: "low_confidence" }] : []
+          };
       const result = {
-        intent: ai.intent,
-        confidence: ai.confidence,
-        urgency: ai.urgency,
-        reply: ai.reply_hebrew,
-        actions: ai.confidence < 0.7 ? [{ type: "escalate_to_committee", reason: "low_confidence" }] : []
+        ...selected,
+        actions: selected.actions ?? []
       };
       await recordAudit({
         actorId: residentId,
         action: "agent_decision",
         entityType: "agent",
         entityId: `agent-${Date.now()}`,
-        metadata: { provider: "openai", intent: result.intent, confidence: result.confidence, urgency: result.urgency }
+        metadata: {
+          provider: useRulesGuard ? "openai_rules_guard" : "openai",
+          intent: result.intent,
+          confidence: result.confidence,
+          urgency: result.urgency,
+          aiIntent: ai.intent,
+          rulesIntent: rulesResult.intent
+        }
       });
       return result;
     }
@@ -165,7 +184,7 @@ export async function handleAgentMessageAsync({ message, residentId = "res-1" })
     });
   }
 
-  const result = handleAgentMessage({ message, residentId });
+  const result = rulesResult;
   result.confidence = result.intent === "community_post" ? 0.55 : 0.86;
   if (result.confidence < 0.7) {
     result.actions.push({ type: "escalate_to_committee", reason: "low_confidence" });

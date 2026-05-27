@@ -27,7 +27,14 @@ export async function classifyWithOpenAI({ message, residentId }) {
     },
     body: JSON.stringify({
       model: openAiModel,
-      instructions: "You are SmartNeighbor Agent. Return only compact JSON with keys intent, confidence, urgency, reply_hebrew. Supported intents: payment_query, maintenance_report, emergency, borrow_item, lend_item, provider_contact, community_post, smalltalk.",
+      instructions: [
+        "You are SmartNeighbor Agent for an Israeli residential building app.",
+        "Classify short Hebrew/English/Arabic/Russian resident messages into one intent.",
+        "Return only compact JSON with keys intent, confidence, urgency, reply_hebrew.",
+        "Supported intents: payment_query, maintenance_report, emergency, borrow_item, lend_item, provider_contact, community_post, smalltalk.",
+        "Examples: 'יש נזילה בלובי' => maintenance_report, high confidence. 'ריח גז בחדר מדרגות' => emergency. 'כמה אני חייב לועד' => payment_query. 'צריך סולם' => borrow_item.",
+        "Do not classify building problems, leaks, elevator, lights, lobby, parking, gas, electricity, water, sewage, or cleaning issues as smalltalk."
+      ].join(" "),
       input: `Resident id: ${residentId}\nRecent memory:\n${priorMessages || "none"}\nMessage:\n${message}`,
       text: {
         format: {
@@ -37,7 +44,7 @@ export async function classifyWithOpenAI({ message, residentId }) {
             type: "object",
             additionalProperties: false,
             properties: {
-              intent: { type: "string" },
+              intent: { type: "string", enum: ["payment_query", "maintenance_report", "emergency", "borrow_item", "lend_item", "provider_contact", "community_post", "smalltalk"] },
               confidence: { type: "number" },
               urgency: { type: "string" },
               reply_hebrew: { type: "string" }
