@@ -19,7 +19,7 @@ services:
       - key: PORT
         value: 3000
       - key: APP_VERSION
-        value: 0.1.0
+        value: 0.1.1
       - key: PUBLIC_BASE_URL
         value: https://smartneighbor.onrender.com
       - key: DATABASE_URL
