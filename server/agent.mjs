@@ -144,7 +144,7 @@ export async function handleAgentMessageAsync({ message, residentId = "res-1" })
     if (ai) {
       const rulesFoundSpecificIntent = !["community_post", "smalltalk"].includes(rulesResult.intent);
       const aiMissedSpecificIntent = ["community_post", "smalltalk"].includes(ai.intent);
-      const useRulesGuard = rulesFoundSpecificIntent && (aiMissedSpecificIntent || Number(ai.confidence) < 0.82);
+      const useRulesGuard = rulesFoundSpecificIntent && (ai.intent !== rulesResult.intent || aiMissedSpecificIntent || Number(ai.confidence) < 0.82);
       const selected = useRulesGuard
         ? { ...rulesResult, confidence: Math.max(rulesConfidence, 0.9), urgency: rulesResult.intent === "emergency" ? "critical" : "medium" }
         : {
