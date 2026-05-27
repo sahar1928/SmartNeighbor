@@ -5,6 +5,13 @@ localStorage.setItem("smartneighbor_token", residentToken);
 let deferredInstallPrompt = null;
 let appConfig = { demoResetEnabled: false };
 
+function setDemoResetAvailable(enabled) {
+  const button = document.querySelector("#resetDemoAccountButton");
+  if (!button) return;
+  button.hidden = !enabled;
+  button.disabled = !enabled;
+}
+
 async function api(path, options) {
   const response = await fetch(path, {
     headers: { "content-type": "application/json" },
@@ -116,7 +123,8 @@ async function loadDashboard() {
 }
 
 async function loadAppConfig() {
-  appConfig = await api("/api/app/config");
+  appConfig = { demoResetEnabled: false, ...(await api("/api/app/config")) };
+  setDemoResetAvailable(false);
   return appConfig;
 }
 
@@ -132,7 +140,7 @@ async function loadMyAccount() {
   const hasOpenBalance = payableAmount > 0;
   document.querySelector("#paypalPayButton").disabled = !hasOpenBalance;
   document.querySelector("#bitPayButton").disabled = !hasOpenBalance;
-  document.querySelector("#resetDemoAccountButton").hidden = hasOpenBalance || !appConfig.demoResetEnabled;
+  setDemoResetAvailable(!hasOpenBalance && appConfig.demoResetEnabled);
   if (!hasOpenBalance && !document.querySelector("#paymentStatus").textContent) {
     text("#paymentStatus", "אין חוב פתוח כרגע. אפשר לאפס את הדמו כדי לבדוק תשלום נוסף.");
   }
@@ -334,13 +342,24 @@ document.querySelector("#bitPayButton").addEventListener("click", async () => {
 
 document.querySelector("#resetDemoAccountButton").addEventListener("click", async () => {
   const status = document.querySelector("#paymentStatus");
-  status.textContent = "מאפס נתוני דמו...";
-  await api("/api/demo/reset-account", {
-    method: "POST",
-    body: JSON.stringify({ token: residentToken })
-  });
-  status.textContent = "הדמו אופס. אפשר לבדוק תשלום נוסף.";
-  await Promise.all([loadMyAccount(), loadPayments(), loadDashboard()]);
+  if (!appConfig.demoResetEnabled) {
+    setDemoResetAvailable(false);
+    status.textContent = "איפוס הדמו כבוי בסביבת הענן.";
+    return;
+  }
+
+  try {
+    status.textContent = "מאפס נתוני דמו...";
+    await api("/api/demo/reset-account", {
+      method: "POST",
+      body: JSON.stringify({ token: residentToken })
+    });
+    status.textContent = "הדמו אופס. אפשר לבדוק תשלום נוסף.";
+    await Promise.all([loadMyAccount(), loadPayments(), loadDashboard()]);
+  } catch (error) {
+    setDemoResetAvailable(false);
+    status.textContent = "איפוס הדמו לא זמין בסביבה הזו.";
+  }
 });
 
 async function handlePayPalReturn() {
@@ -401,6 +420,7 @@ document.querySelector("#quickItemForm").addEventListener("submit", async (event
 });
 
 addBubble("agent", "שלום, אני SmartNeighbor Agent. אפשר לשאול על תשלום, לדווח תקלה, לבקש חפץ או למצוא ספק.");
+setDemoResetAvailable(false);
 
 await loadAppConfig().catch(() => {});
 

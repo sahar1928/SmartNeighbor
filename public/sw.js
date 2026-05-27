@@ -1,4 +1,4 @@
-const CACHE_NAME = "smartneighbor-v3";
+const CACHE_NAME = "smartneighbor-v4";
 const APP_SHELL = [
   "/",
   "/index.html",
