@@ -396,7 +396,7 @@ document.querySelector("#quickItemForm").addEventListener("submit", async (event
 
 addBubble("agent", "שלום, אני SmartNeighbor Agent. אפשר לשאול על תשלום, לדווח תקלה, לבקש חפץ או למצוא ספק.");
 
-await Promise.all([
+const initialLoads = await Promise.allSettled([
   loadDashboard(),
   loadMyAccount(),
   loadPayPalConfig(),
@@ -407,6 +407,12 @@ await Promise.all([
   loadCommunity(),
   loadItems()
 ]);
+
+const failedInitialLoads = initialLoads.filter((result) => result.status === "rejected");
+if (failedInitialLoads.length) {
+  document.querySelector("#paymentStatus").textContent = "חלק מהנתונים לא נטענו כרגע. נסה לרענן בעוד רגע.";
+  console.warn("SmartNeighbor initial load partial failure", failedInitialLoads);
+}
 
 await handlePayPalReturn();
 
