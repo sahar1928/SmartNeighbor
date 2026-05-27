@@ -138,11 +138,28 @@ export function handleAgentMessage({ message, residentId = "res-1" }) {
 export async function handleAgentMessageAsync({ message, residentId = "res-1" }) {
   const rulesResult = handleAgentMessage({ message, residentId });
   const rulesConfidence = rulesResult.intent === "community_post" ? 0.55 : 0.9;
+  const rulesFoundSpecificIntent = !["community_post", "smalltalk"].includes(rulesResult.intent);
+
+  if (rulesFoundSpecificIntent) {
+    const result = {
+      ...rulesResult,
+      confidence: rulesConfidence,
+      urgency: rulesResult.intent === "emergency" ? "critical" : "medium",
+      actions: rulesResult.actions ?? []
+    };
+    await recordAudit({
+      actorId: residentId,
+      action: "agent_decision",
+      entityType: "agent",
+      entityId: `agent-${Date.now()}`,
+      metadata: { provider: "rules_precheck", intent: result.intent, confidence: result.confidence, urgency: result.urgency }
+    });
+    return result;
+  }
 
   try {
     const ai = await classifyWithOpenAI({ message, residentId });
     if (ai) {
-      const rulesFoundSpecificIntent = !["community_post", "smalltalk"].includes(rulesResult.intent);
       const aiMissedSpecificIntent = ["community_post", "smalltalk"].includes(ai.intent);
       const useRulesGuard = rulesFoundSpecificIntent && (ai.intent !== rulesResult.intent || aiMissedSpecificIntent || Number(ai.confidence) < 0.82);
       const selected = useRulesGuard
