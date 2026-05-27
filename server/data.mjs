@@ -118,9 +118,10 @@ export const votes = [
   }
 ];
 
-export function getDashboard() {
+export async function getDashboard() {
   const building = buildings[0];
-  const openTickets = tickets.filter((ticket) => ticket.status !== "closed");
+  const allTickets = await listMaintenanceTickets();
+  const openTickets = allTickets.filter((ticket) => ticket.status !== "closed");
   const urgentTickets = openTickets.filter((ticket) => ticket.priority === "P0" || ticket.priority === "P1");
   const latePayments = payments.filter((payment) => payment.status === "late");
 
@@ -141,6 +142,69 @@ export function getDashboard() {
     ],
     agentSummary: "בשבעת הימים האחרונים נפתחו 9 תקלות ונסגרו 8. שיעור הגבייה עלה ב-5%, ויש טיקט חירום אחד שממתין לאישור ספק."
   };
+}
+
+export async function listMaintenanceTickets() {
+  if (!dbEnabled) return tickets;
+
+  const result = await query(
+    `SELECT t.id, t.title, t.description, t.category, t.priority, t.status,
+            t.location, t.provider_id AS "providerId", t.opened_at AS "openedAt",
+            t.sla_hours AS "slaHours",
+            COALESCE(r.name, 'דייר מהקבוצה') AS reporter
+     FROM maintenance_tickets t
+     LEFT JOIN residents r ON r.id = t.reporter_id
+     ORDER BY t.opened_at DESC`
+  );
+  return result.rows;
+}
+
+export async function createMaintenanceTicket({
+  actorId = "agent",
+  reporterId = null,
+  title,
+  description,
+  category = "general",
+  priority = "P3",
+  status = "open",
+  location = "לא צוין",
+  providerId = null
+}) {
+  const id = `T-${Date.now().toString().slice(-6)}`;
+  const slaHours = priority === "P0" ? 1 : priority === "P1" ? 24 : priority === "P2" ? 72 : 336;
+  const ticket = {
+    id,
+    title: title || "דיווח תחזוקה מה-Agent",
+    description: description || title || "דיווח תחזוקה מה-Agent",
+    category,
+    priority,
+    status,
+    location,
+    reporter: residents.find((resident) => resident.id === reporterId)?.name ?? "דייר מהקבוצה",
+    providerId,
+    openedAt: new Date().toISOString(),
+    slaHours
+  };
+
+  if (dbEnabled) {
+    await query(
+      `INSERT INTO maintenance_tickets
+       (id, building_id, reporter_id, provider_id, title, description, category, priority, status, location, sla_hours)
+       VALUES ($1, 'bldg-rtl-24', $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [id, reporterId, providerId, ticket.title, ticket.description, category, priority, status, location, slaHours]
+    );
+  } else {
+    tickets.unshift(ticket);
+  }
+
+  await recordAudit({
+    actorId,
+    action: "maintenance_ticket_created",
+    entityType: "maintenance_ticket",
+    entityId: id,
+    metadata: { reporterId, priority, location, providerId, source: "agent" }
+  });
+  return ticket;
 }
 
 export function findResidentByToken(token) {

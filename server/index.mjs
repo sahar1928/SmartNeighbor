@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { handleAgentMessageAsync } from "./agent.mjs";
 import { listAuditEvents } from "./audit.mjs";
 import { captureBitPayment, createBitPayment, getBitConfig } from "./bit.mjs";
-import { communityPosts, createProvider, createResident, createResidentCharge, createVote, approveExpense, getDashboard, getResidentAccount, items, payments, providers, recordResidentPayment, resetResidentDemoAccount, residents, tickets, updatePaymentStatus, votes } from "./data.mjs";
+import { communityPosts, createProvider, createResident, createResidentCharge, createVote, approveExpense, getDashboard, getResidentAccount, items, listMaintenanceTickets, payments, providers, recordResidentPayment, resetResidentDemoAccount, residents, updatePaymentStatus, votes } from "./data.mjs";
 import { listNotifications, queuePaymentReminder } from "./notifications.mjs";
 import { capturePayPalOrder, createPayPalOrder, getPayPalConfig } from "./paypal.mjs";
 import { demoResetEnabled, requireRole } from "./security.mjs";
@@ -81,7 +81,7 @@ export async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/dashboard") {
-    return json(res, 200, getDashboard());
+    return json(res, 200, await getDashboard());
   }
 
   if (req.method === "GET" && url.pathname === "/api/me") {
@@ -92,7 +92,7 @@ export async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/residents") return json(res, 200, residents);
   if (req.method === "GET" && url.pathname === "/api/payments") return json(res, 200, payments);
-  if (req.method === "GET" && url.pathname === "/api/tickets") return json(res, 200, tickets);
+  if (req.method === "GET" && url.pathname === "/api/tickets") return json(res, 200, await listMaintenanceTickets());
   if (req.method === "GET" && url.pathname === "/api/providers") return json(res, 200, providers);
   if (req.method === "GET" && url.pathname === "/api/community") return json(res, 200, communityPosts);
   if (req.method === "GET" && url.pathname === "/api/items") return json(res, 200, items);

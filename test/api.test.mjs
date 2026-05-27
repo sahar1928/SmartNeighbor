@@ -38,6 +38,33 @@ test("agent endpoint returns classified response", async () => {
   }
 });
 
+test("maintenance agent message creates a real ticket", async () => {
+  const server = createServer();
+  const port = await listen(server);
+  try {
+    const beforeResponse = await fetch(`http://127.0.0.1:${port}/api/tickets`);
+    const before = await beforeResponse.json();
+
+    const response = await fetch(`http://127.0.0.1:${port}/api/agent/message`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: "יש נזילה בלובי", residentId: "res-1" })
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.intent, "maintenance_report");
+    assert.equal(body.actions.some((action) => action.type === "ticket_created"), true);
+    assert.equal(body.ticket.location, "לובי");
+
+    const afterResponse = await fetch(`http://127.0.0.1:${port}/api/tickets`);
+    const after = await afterResponse.json();
+    assert.equal(after.length, before.length + 1);
+    assert.equal(after[0].id, body.ticket.id);
+  } finally {
+    server.close();
+  }
+});
+
 test("whatsapp webhook verification returns challenge", async () => {
   const server = createServer();
   const port = await listen(server);

@@ -242,6 +242,9 @@ document.querySelector("#agentForm").addEventListener("submit", async (event) =>
     body: JSON.stringify({ message, residentId: "res-1" })
   });
   addBubble("agent", result.reply);
+  if (result.ticket || result.actions?.some((action) => action.type === "ticket_created")) {
+    await Promise.all([loadTickets(), loadDashboard()]);
+  }
 });
 
 document.querySelector("#installButton").addEventListener("click", async () => {
@@ -403,6 +406,7 @@ document.querySelector("#quickTicketForm").addEventListener("submit", async (eve
     body: JSON.stringify({ message: `${description} ב${location}`, residentId: "res-1" })
   });
   status.textContent = result.reply;
+  await Promise.all([loadTickets(), loadDashboard()]);
 });
 
 document.querySelector("#quickItemForm").addEventListener("submit", async (event) => {

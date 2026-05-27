@@ -1,4 +1,4 @@
-import { items, providers, residents } from "./data.mjs";
+import { createMaintenanceTicket, items, providers, residents } from "./data.mjs";
 import { recordAudit } from "./audit.mjs";
 import { classifyWithOpenAI } from "./openai-agent.mjs";
 
@@ -42,6 +42,60 @@ function findProvider(text) {
     return providers.find((provider) => provider.domain.includes("ניקיון"));
   }
   return providers[0];
+}
+
+function classifyCategory(text) {
+  if (text.includes("גז")) return "gas";
+  if (text.includes("חשמל") || text.includes("נורה")) return "electricity";
+  if (text.includes("מים") || text.includes("נזילה") || text.includes("ביוב") || text.includes("הצפה")) return "plumbing";
+  if (text.includes("מעלית")) return "elevator";
+  if (text.includes("ניקיון") || text.includes("אשפה")) return "cleaning";
+  return "general";
+}
+
+function createTicketTitle(text, category) {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (cleaned.length <= 48) return cleaned || "דיווח תחזוקה";
+  const categoryLabel = {
+    gas: "דיווח גז",
+    electricity: "דיווח חשמל",
+    plumbing: "דיווח אינסטלציה",
+    elevator: "דיווח מעלית",
+    cleaning: "דיווח ניקיון",
+    general: "דיווח תחזוקה"
+  }[category] ?? "דיווח תחזוקה";
+  return categoryLabel;
+}
+
+async function persistAgentActions(result, { text, residentId }) {
+  const ticketAction = result.actions?.find((action) => action.type === "ticket_draft");
+  const shouldCreateTicket = ticketAction || ["maintenance_report", "emergency"].includes(result.intent);
+  if (!shouldCreateTicket) return result;
+
+  const category = classifyCategory(text);
+  const ticket = await createMaintenanceTicket({
+    actorId: residentId,
+    reporterId: residentId,
+    title: createTicketTitle(text, category),
+    description: text,
+    category,
+    priority: ticketAction?.priority ?? (result.intent === "emergency" ? "P0" : "P3"),
+    status: result.intent === "emergency" ? "assigned" : "open",
+    location: ticketAction?.location ?? extractLocation(text),
+    providerId: ticketAction?.providerId ?? findProvider(text)?.id ?? null
+  });
+
+  return {
+    ...result,
+    ticket,
+    actions: [
+      ...(result.actions ?? []).filter((action) => action.type !== "ticket_draft"),
+      { type: "ticket_created", ticketId: ticket.id, priority: ticket.priority, location: ticket.location }
+    ],
+    reply: result.reply
+      .replace("פתחתי טיוטת קריאת תחזוקה", `פתחתי קריאת תחזוקה ${ticket.id}`)
+      .replace("פתחתי טיוטת קריאת P0", `פתחתי קריאת חירום ${ticket.id}`)
+  };
 }
 
 export function handleAgentMessage({ message, residentId = "res-1" }) {
@@ -136,6 +190,7 @@ export function handleAgentMessage({ message, residentId = "res-1" }) {
 }
 
 export async function handleAgentMessageAsync({ message, residentId = "res-1" }) {
+  const text = String(message ?? "").trim();
   const rulesResult = handleAgentMessage({ message, residentId });
   const rulesConfidence = rulesResult.intent === "community_post" ? 0.55 : 0.9;
   const rulesFoundSpecificIntent = !["community_post", "smalltalk"].includes(rulesResult.intent);
@@ -154,7 +209,7 @@ export async function handleAgentMessageAsync({ message, residentId = "res-1" })
       entityId: `agent-${Date.now()}`,
       metadata: { provider: "rules_precheck", intent: result.intent, confidence: result.confidence, urgency: result.urgency }
     });
-    return result;
+    return persistAgentActions(result, { text, residentId });
   }
 
   try {
@@ -189,7 +244,7 @@ export async function handleAgentMessageAsync({ message, residentId = "res-1" })
           rulesIntent: rulesResult.intent
         }
       });
-      return result;
+      return persistAgentActions(result, { text, residentId });
     }
   } catch (error) {
     await recordAudit({
@@ -213,5 +268,5 @@ export async function handleAgentMessageAsync({ message, residentId = "res-1" })
     entityId: `agent-${Date.now()}`,
     metadata: { provider: "rules", intent: result.intent, confidence: result.confidence }
   });
-  return result;
+  return persistAgentActions(result, { text, residentId });
 }
