@@ -13,7 +13,7 @@ For the current MVP, the simplest public setup is:
 - Optional managed Redis.
 - PayPal Sandbox credentials.
 - BIT in simulator mode.
-- WhatsApp left in mock/webhook-ready mode until a Meta Business setup is available.
+- Telegram left in mock/webhook-ready mode until a Telegram Bot setup is available.
 
 ## What Changed for Public Deployment
 
@@ -40,7 +40,7 @@ Fast path:
 1. Open the Deploy to Render button in `README.md`.
 2. Connect your GitHub account if Render asks.
 3. Select `sahar1928/SmartNeighbor`.
-4. Fill only the secret values you want to enable. For a basic public demo, PayPal and WhatsApp can stay empty.
+4. Fill only the secret values you want to enable. For a basic public demo, PayPal and Telegram can stay empty.
 5. Deploy.
 
 Manual path:
@@ -63,8 +63,8 @@ PAYPAL_CLIENT_SECRET=...
 PAYPAL_RETURN_URL=https://YOUR-APP.onrender.com/?rt=demo-danny-4b&paypal=return#my-account
 PAYPAL_CANCEL_URL=https://YOUR-APP.onrender.com/?rt=demo-danny-4b&paypal=cancel#my-account
 BIT_MODE=simulator
-WHATSAPP_VERIFY_TOKEN=choose-a-random-value
-WHATSAPP_DEFAULT_TO=972525452532
+TELEGRAM_BOT_TOKEN=your-bot-token
+TELEGRAM_WEBHOOK_SECRET=choose-a-random-secret
 ```
 
 6. Deploy.
@@ -84,7 +84,7 @@ Railway can deploy from the Dockerfile and attach PostgreSQL.
 4. Set `DATABASE_URL` to the Railway PostgreSQL connection string.
 5. Set `DATABASE_SSL=true` if Railway requires SSL for the chosen connection.
 6. Set `PUBLIC_BASE_URL` to the Railway public domain.
-7. Set the PayPal and WhatsApp variables as needed.
+7. Set the PayPal and Telegram variables as needed.
 
 Railway's docs note that PostgreSQL services expose connection variables, including a `DATABASE_URL`, to other services in the project.
 
@@ -167,7 +167,7 @@ Before production:
 - Use managed secrets.
 - Use HTTPS only.
 - Do not use PayPal live until business/legal setup is ready.
-- Do not process real WhatsApp messages without consent.
+- Do not process real Telegram messages without consent.
 
 ## Sources
 

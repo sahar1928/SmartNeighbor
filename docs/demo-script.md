@@ -32,19 +32,19 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3000/api/demo/reset-account
 
 ## פתיחה
 
-"הפרויקט שלי נקרא SmartNeighbor. הוא פותר בעיה של ניהול בניין מגורים: תשלומי ועד, תחזוקה, הודעות ודיירים - הכל מתנהל היום ב-WhatsApp בצורה לא מסודרת. המטרה היא לשמור על הפשטות של WhatsApp, אבל להוסיף מאחורי הקלעים מערכת ניהול מסודרת."
+"הפרויקט שלי נקרא SmartNeighbor. הוא פותר בעיה של ניהול בניין מגורים: תשלומי ועד, תחזוקה, הודעות ודיירים - הכל מתנהל היום ב-Telegram בצורה לא מסודרת. המטרה היא לשמור על הפשטות של Telegram, אבל להוסיף מאחורי הקלעים מערכת ניהול מסודרת."
 
 ## שלב 1 - שוק
 
 להציג:
 
-- WhatsApp הוא הכלי הקיים, אבל אין בו מבנה.
+- Telegram הוא הכלי הקיים, אבל אין בו מבנה.
 - Bllink ו-Darimpo נותנים פתרונות ניהול/תשלומים.
-- הפער: אין מוצר שמחבר WhatsApp-first, תשלומים, תחזוקה, קהילה ו-Agent.
+- הפער: אין מוצר שמחבר Telegram-first, תשלומים, תחזוקה, קהילה ו-Agent.
 
 משפט מרכזי:
 
-"SmartNeighbor לא מנסה להחליף את WhatsApp, אלא לבנות מעליו שכבת ניהול חכמה."
+"SmartNeighbor לא מנסה להחליף את Telegram, אלא לבנות מעליו שכבת ניהול חכמה."
 
 ## שלב 2 - פונקציונליות
 
@@ -65,7 +65,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3000/api/demo/reset-account
    - לכתוב: `יש הצפה בחניון`
    - להראות שה-Agent מזהה חירום/תקלה.
 
-4. WhatsApp feed:
+4. Telegram feed:
    - לשלוח הודעה מקומית.
    - להראות שהיא מופיעה בפיד בלי לקפוץ למעלה.
 
@@ -101,9 +101,9 @@ kubectl kustomize k8s
 
 ## שאלות ותשובות מוכנות
 
-### האם זה מחובר ל-WhatsApp אמיתי?
+### האם זה מחובר ל-Telegram אמיתי?
 
-הפרויקט כולל webhook אמיתי ל-WhatsApp Business Cloud API, אך בדמו המקומי הוא עובד כ-simulator. חיבור אמיתי דורש Meta Business App, מספר עסקי ו-webhook ציבורי.
+הפרויקט כולל webhook אמיתי ל-Telegram Bot API, אך בדמו המקומי הוא עובד כ-simulator. חיבור אמיתי דורש BotFather token ו-webhook ציבורי.
 
 ### האם התשלום אמיתי?
 
@@ -119,4 +119,4 @@ Docker מספיק לדמו מקומי. Kubernetes מראה מוכנות לפרי
 
 ## סיום
 
-"התוצאה היא MVP עובד שמדגים מוצר אמיתי: יש אפיון שוק, מפרט פונקציונלי, ותשתית Docker/Kubernetes. החלקים החיצוניים כמו WhatsApp production, BIT production ו-PayPal live מוכנים ברמת adapter ודורשים הרשאות ספקים אמיתיות."
+"התוצאה היא MVP עובד שמדגים מוצר אמיתי: יש אפיון שוק, מפרט פונקציונלי, ותשתית Docker/Kubernetes. החלקים החיצוניים כמו Telegram production, BIT production ו-PayPal live מוכנים ברמת adapter ודורשים הרשאות ספקים אמיתיות."

@@ -19,7 +19,7 @@ This repository intentionally starts without external runtime dependencies. It i
 ## Production target
 
 ```text
-WhatsApp Business API / Web / PWA / SMS
+Telegram Bot API / Web / PWA / SMS
                  |
                  v
           API Gateway / BFF
@@ -48,5 +48,5 @@ PostgreSQL + Redis + object storage + payment gateway
 - Keep card details outside SmartNeighbor. Store payment provider tokens only.
 - Require 2FA for committee users.
 - Audit all sensitive actions: payment status changes, expense approvals, resident data access.
-- Explicit consent before processing WhatsApp group messages.
+- Explicit consent before processing Telegram group messages.
 - Support export and deletion flows for privacy compliance.

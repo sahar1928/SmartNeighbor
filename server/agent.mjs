@@ -188,8 +188,8 @@ export function handleAgentMessage({ message, residentId = "res-1" }) {
   if (includesAny(normalized, announcementWords)) {
     return {
       intent: "resident_announcement",
-      reply: "ניסחתי טיוטת הודעה לדיירים. לפני פרסום אדרוש אישור ועד ובחירת ערוץ: Telegram, WhatsApp, או לוח הקהילה.",
-      actions: [{ type: "resident_announcement_draft", body: text, channels: ["telegram", "whatsapp", "community_feed"], requiresRole: "committee" }]
+      reply: "ניסחתי טיוטת הודעה לדיירים. לפני פרסום אדרוש אישור ועד ובחירת ערוץ: Telegram או לוח הקהילה.",
+      actions: [{ type: "resident_announcement_draft", body: text, channels: ["telegram", "community_feed"], requiresRole: "committee" }]
     };
   }
 
@@ -241,7 +241,7 @@ export function handleAgentMessage({ message, residentId = "res-1" }) {
         : `פתחתי טיוטת קריאת תחזוקה. מיקום: ${location}, עדיפות: ${priority}. לאישור סופי אפשר לצרף תמונה או לשלוח "אשר".`,
       actions: [
         { type: "ticket_draft", priority, location, providerId: provider.id },
-        ...(emergency ? [{ type: "notify_committee", channel: "whatsapp_sms" }] : [])
+        ...(emergency ? [{ type: "notify_committee", channel: "telegram" }] : [])
       ]
     };
   }

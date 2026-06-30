@@ -12,11 +12,11 @@
 
 הפרויקט כבר מכסה את רוב הדרישות:
 
-- יש רעיון מוצר ברור: פלטפורמת ניהול בניין וקהילה סביב WhatsApp-first.
-- יש הגדרת בעיה חזקה: כאוס בקבוצות WhatsApp, גבייה לא מסודרת, תחזוקה ללא מעקב וחוסר שקיפות.
+- יש רעיון מוצר ברור: פלטפורמת ניהול בניין וקהילה סביב Telegram-first.
+- יש הגדרת בעיה חזקה: כאוס בקבוצות Telegram, גבייה לא מסודרת, תחזוקה ללא מעקב וחוסר שקיפות.
 - יש מפרט פונקציונלי רחב: Agent, תשלומים, תחזוקה, לוח קהילה, ספריית חפצים, ועד וספקים.
 - יש מימוש רץ: Web/PWA בעברית, API, PostgreSQL, Redis, Docker Compose ו-Kubernetes.
-- יש אינטגרציות דמו/אמיתיות חלקית: PayPal Sandbox, BIT simulator, WhatsApp webhook scaffold.
+- יש אינטגרציות דמו/אמיתיות חלקית: PayPal Sandbox, BIT simulator, Telegram webhook scaffold.
 
 ## שלב 1 - סקירת שוק
 
@@ -26,7 +26,7 @@
 
 - Bllink
 - Darimpo
-- WhatsApp groups
+- Telegram groups
 
 הניתוח הקיים נכון בכיוון: SmartNeighbor לא מתחרה רק באפליקציית תשלום, אלא מנסה לפתור את כל חיי הבניין דרך שכבת Agent.
 
@@ -38,13 +38,13 @@
 - חלוקת מתחרים לקטגוריות:
   - אפליקציות ועד בית ותשלומים.
   - חברות ניהול נכסים.
-  - WhatsApp ככלי בפועל, למרות שאינו מוצר ייעודי.
+  - Telegram ככלי בפועל, למרות שאינו מוצר ייעודי.
   - פתרונות CRM/Helpdesk כלליים שוועדים יכולים לאמץ ידנית.
 - ניתוח SWOT קצר.
 - TAM/SAM/SOM ברמה בסיסית.
 - מגמות טכנולוגיות:
   - Conversational AI.
-  - WhatsApp Business API.
+  - Telegram Bot API.
   - PWA במקום אפליקציה מלאה.
   - תשלומים דיגיטליים ו-Magic Links.
   - Open Banking.
@@ -52,9 +52,9 @@
 
 ### טבלת השוואה מומלצת
 
-| קריטריון | WhatsApp | Bllink | Darimpo | SmartNeighbor |
+| קריטריון | Telegram | Bllink | Darimpo | SmartNeighbor |
 |---|---:|---:|---:|---:|
-| אימוץ משתמשים | גבוה | בינוני | בינוני | גבוה דרך WhatsApp-first |
+| אימוץ משתמשים | גבוה | בינוני | בינוני | גבוה דרך Telegram-first |
 | תשלומים | לא מובנה | חזק | קיים | PayPal/BIT + הרחבה עתידית |
 | תחזוקה וטיקטים | לא מובנה | מוגבל | קיים | Agent + SLA |
 | קהילה ושיתוף | כאוטי | נמוך | נמוך/בינוני | לוח קהילה וספריית חפצים |
@@ -70,7 +70,7 @@
 - חזון ומטרות.
 - שוק ומתחרים.
 - משתמשים והרשאות.
-- דילמת WhatsApp.
+- דילמת Telegram.
 - SmartNeighbor Agent.
 - תשלומים.
 - תחזוקה.
@@ -102,7 +102,7 @@
 | Dashboard דייר | כן | הרחבות |
 | תשלומי דמו/PayPal Sandbox | כן | סליקה ישראלית מלאה |
 | BIT simulator | כן | BIT/Open Banking מלא |
-| WhatsApp webhook scaffold | כן | חיבור Meta production |
+| Telegram webhook scaffold | כן | חיבור Telegram production |
 | Agent בסיסי | כן | AI מלא עם OpenAI |
 | Kubernetes manifests | כן | Cluster בענן |
 
@@ -123,7 +123,7 @@
 
 - תשלום PayPal: לחיצה יוצרת order, מעבר ל-PayPal, חזרה מעדכנת מאזן.
 - BIT: לחיצה בסימולטור מעדכנת מאזן ומציגה אפשרות איפוס דמו.
-- WhatsApp: הודעה מקומית מופיעה בפיד בלי להקפיץ את המשתמש לראש הדף.
+- Telegram: הודעה מקומית מופיעה בפיד בלי להקפיץ את המשתמש לראש הדף.
 - Magic Link: דייר רואה רק את החיובים והתנועות שלו.
 
 #### 5. גבולות הדמו
@@ -132,7 +132,7 @@
 
 - PayPal הוא Sandbox, לא Live.
 - BIT עובד כסימולטור כי Open Banking אמיתי דורש TPP credentials ותעודות חתימה.
-- WhatsApp Cloud API מוכן כ-webhook, אך קבוצות WhatsApp רגילות אינן מנוהלות דרך API רשמי.
+- Telegram Bot API מוכן כ-webhook, אך קבוצות Telegram רגילות אינן מנוהלות דרך API רשמי.
 - Kubernetes manifests מוכנים להרצה/הדגמה, אבל production אמיתי דורש cluster, domain, TLS ו-secrets אמיתיים.
 
 ## שלב 3 - Docker ו-Kubernetes
@@ -205,10 +205,10 @@ kubectl kustomize k8s
 
 | סיכון | השפעה | מענה |
 |---|---|---|
-| WhatsApp לא מאפשר ניהול קבוצות רגילות דרך API | אי אפשר לפתוח קבוצה אמיתית אוטומטית | שימוש ב-1:1 Business API ופיד פנימי |
+| Telegram לא מאפשר ניהול קבוצות רגילות דרך API | אי אפשר לפתוח קבוצה אמיתית אוטומטית | שימוש ב-Telegram Bot API ופיד פנימי |
 | סליקה אמיתית דורשת רגולציה וספק מורשה | עיכוב ב-production | שימוש ב-PayPal Sandbox וספק חיצוני |
 | BIT/Open Banking דורש TPP ותעודות | לא ניתן לחבר מלא בדמו רגיל | simulator עם adapter מוכן |
-| דיירים לא רוצים עוד אפליקציה | אימוץ נמוך | WhatsApp-first ו-PWA ללא התקנה |
+| דיירים לא רוצים עוד אפליקציה | אימוץ נמוך | Telegram-first ו-PWA ללא התקנה |
 | Magic Link עלול להיות משותף | פרטיות | תוקף מוגבל, token rotation ו-2FA לוועד בעתיד |
 
 ## מסקנה
@@ -225,7 +225,7 @@ kubectl kustomize k8s
 
 - Bllink: https://www.bllink.co
 - Darimpo: https://www.darimpo.com
-- Meta WhatsApp Business Platform: https://developers.facebook.com/docs/whatsapp
+- Telegram Bot API: https://core.telegram.org/bots/api
 - PayPal Developer Sandbox: https://developer.paypal.com/tools/sandbox/
 - Kubernetes Documentation: https://kubernetes.io/docs/
 - Docker Documentation: https://docs.docker.com/

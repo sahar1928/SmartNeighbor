@@ -145,100 +145,20 @@ test("telegram webhook answers start command", async () => {
   }
 });
 
-test("whatsapp webhook verification returns challenge", async () => {
+test("telegram local message simulator feeds the same agent flow", async () => {
   const server = createServer();
   const port = await listen(server);
   try {
-    const response = await fetch(`http://127.0.0.1:${port}/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=smartneighbor-dev-token&hub.challenge=abc123`);
-    const body = await response.text();
-    assert.equal(response.status, 200);
-    assert.equal(body, "abc123");
-  } finally {
-    server.close();
-  }
-});
-
-test("whatsapp webhook receives text and produces reply", async () => {
-  const server = createServer();
-  const port = await listen(server);
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/webhooks/whatsapp`, {
+    const response = await fetch(`http://127.0.0.1:${port}/api/telegram/local-message`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        entry: [{
-          changes: [{
-            value: {
-              metadata: { display_phone_number: "972300000000" },
-              messages: [{
-                id: "wamid.test",
-                from: "972501234567",
-                timestamp: "1779799200",
-                type: "text",
-                text: { body: "יש הצפה בחניון" }
-              }]
-            }
-          }]
-        }]
-      })
+      body: JSON.stringify({ text: "תודיע לדיירים שמחר יש הפסקת מים", from: "resident" })
     });
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.received, 1);
-    assert.equal(body.replies[0].agent.intent, "emergency");
-  } finally {
-    server.close();
-  }
-});
-
-test("whatsapp webhook technician request creates maintenance ticket", async () => {
-  const server = createServer();
-  const port = await listen(server);
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/webhooks/whatsapp`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        entry: [{
-          changes: [{
-            value: {
-              metadata: { display_phone_number: "972300000000" },
-              messages: [{
-                id: "wamid.technician",
-                from: "972501234567",
-                timestamp: "1779799200",
-                type: "text",
-                text: { body: "אני צריך טכנאי" }
-              }]
-            }
-          }]
-        }]
-      })
-    });
-    const body = await response.json();
-    assert.equal(response.status, 200);
-    assert.equal(body.received, 1);
-    assert.equal(body.replies[0].agent.intent, "maintenance_report");
-    assert.equal(body.replies[0].agent.actions.some((action) => action.type === "ticket_created"), true);
-    assert.equal(body.replies[0].agent.ticket.providerId, "prov-2");
-  } finally {
-    server.close();
-  }
-});
-
-test("whatsapp send uses default recipient when to is omitted", async () => {
-  const server = createServer();
-  const port = await listen(server);
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/api/whatsapp/send`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: "בדיקת SmartNeighbor" })
-    });
-    const body = await response.json();
-    assert.equal(response.status, 200);
-    assert.equal(body.mode, "mock");
-    assert.equal(body.message.to, "972525452532");
+    assert.equal(body.agent.intent, "resident_announcement");
+    assert.equal(body.delivery.mode, "mock");
   } finally {
     server.close();
   }

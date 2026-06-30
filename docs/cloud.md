@@ -12,7 +12,7 @@ Use:
 - PostgreSQL: managed database
 - Redis: optional managed Redis
 - PayPal: Sandbox REST credentials
-- WhatsApp: leave empty until you connect Meta
+- Telegram: leave empty until you connect a BotFather token and webhook
 
 ## Render
 

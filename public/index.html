@@ -22,7 +22,7 @@
       <nav aria-label="ניווט ראשי">
         <a href="#dashboard">דאשבורד</a>
         <a href="#my-account">החשבון שלי</a>
-        <a href="#whatsapp">WhatsApp</a>
+        <a href="#telegram">Telegram</a>
         <a href="#agent">Agent</a>
         <a href="#maintenance">תחזוקה</a>
         <a href="#community">קהילה</a>
@@ -125,18 +125,18 @@
       </section>
 
       <section class="workbench">
-        <div id="whatsapp" class="panel whatsapp-panel">
+        <div id="telegram" class="panel telegram-panel">
           <div class="section-title">
-            <span class="icon">WA</span>
-            <h2>קבוצת WhatsApp חדשה</h2>
+            <span class="icon">TG</span>
+            <h2>קבוצת Telegram חדשה</h2>
           </div>
           <div class="group-header">
             <strong>בניין רוטשילד 24 · SmartNeighbor</strong>
             <span class="badge blue">מוכן ל-webhook</span>
           </div>
-          <div id="whatsappLog" class="chat-log whatsapp-log" aria-live="polite"></div>
-          <form id="whatsappForm" class="agent-form">
-            <input id="whatsappInput" type="text" placeholder="כתוב הודעה בשם דייר לקבוצה..." autocomplete="off">
+          <div id="telegramLog" class="chat-log telegram-log" aria-live="polite"></div>
+          <form id="telegramForm" class="agent-form">
+            <input id="telegramInput" type="text" placeholder="כתוב הודעת Telegram בשם דייר..." autocomplete="off">
             <button type="submit">שלח</button>
           </form>
         </div>
@@ -167,13 +167,13 @@
         <div class="panel">
           <div class="section-title">
             <span class="icon">D</span>
-            <h2>חיבור WhatsApp אמיתי</h2>
+            <h2>חיבור Telegram אמיתי</h2>
           </div>
           <ol class="setup-list">
-            <li>יוצרים Meta App עם WhatsApp Business Cloud API.</li>
-            <li>מגדירים Webhook URL אל <code>/webhooks/whatsapp</code>.</li>
-            <li>מגדירים ב-Docker את <code>WHATSAPP_ACCESS_TOKEN</code>, <code>WHATSAPP_PHONE_NUMBER_ID</code>, ו-<code>WHATSAPP_VERIFY_TOKEN</code>.</li>
-            <li>שולחים הודעה למספר העסקי ורואים אותה כאן.</li>
+            <li>יוצרים Bot דרך <code>@BotFather</code>.</li>
+            <li>מגדירים Webhook URL אל <code>/webhooks/telegram</code>.</li>
+            <li>מגדירים ב-Docker את <code>TELEGRAM_BOT_TOKEN</code> ו-<code>TELEGRAM_WEBHOOK_SECRET</code>.</li>
+            <li>שולחים הודעה לבוט ורואים אותה כאן.</li>
           </ol>
         </div>
       </section>
@@ -258,7 +258,7 @@
     <nav class="mobile-tabbar" aria-label="ניווט אפליקציה">
       <a href="#my-account">חשבון</a>
       <a href="#quick-actions">פעולות</a>
-      <a href="#whatsapp">צ׳אט</a>
+      <a href="#telegram">צ׳אט</a>
       <a href="#maintenance">תחזוקה</a>
       <a href="#community">קהילה</a>
     </nav>

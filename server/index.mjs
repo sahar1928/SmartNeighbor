@@ -10,7 +10,6 @@ import { listNotifications, queuePaymentReminder } from "./notifications.mjs";
 import { capturePayPalOrder, createPayPalOrder, getPayPalConfig } from "./paypal.mjs";
 import { demoResetEnabled, requireRole } from "./security.mjs";
 import { handleIncomingTelegramWebhook, telegramMessages, verifyTelegramSecret } from "./telegram.mjs";
-import { addLocalWhatsappMessage, handleIncomingWebhook, sendWhatsAppText, verifyWebhook, whatsappMessages } from "./whatsapp.mjs";
 
 const rootDir = fileURLToPath(new URL("..", import.meta.url));
 const publicDir = join(rootDir, "public");
@@ -67,7 +66,6 @@ export async function handleApi(req, res, url) {
         http: "ok",
         databaseConfigured: Boolean(process.env.DATABASE_URL),
         redisConfigured: Boolean(process.env.REDIS_URL),
-        whatsappConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
         telegramConfigured: Boolean(process.env.TELEGRAM_BOT_TOKEN)
       }
     });
@@ -77,7 +75,7 @@ export async function handleApi(req, res, url) {
     return json(res, 200, {
       demoResetEnabled,
       openAiConfigured: Boolean(process.env.OPENAI_API_KEY),
-      notifications: ["in_app", "whatsapp_mock", "telegram"],
+      notifications: ["in_app", "telegram"],
       committee2faRequired: Boolean(process.env.COMMITTEE_2FA_CODE)
     });
   }
@@ -99,28 +97,27 @@ export async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/community") return json(res, 200, communityPosts);
   if (req.method === "GET" && url.pathname === "/api/items") return json(res, 200, items);
   if (req.method === "GET" && url.pathname === "/api/votes") return json(res, 200, votes);
-  if (req.method === "GET" && url.pathname === "/api/whatsapp/messages") return json(res, 200, whatsappMessages);
   if (req.method === "GET" && url.pathname === "/api/telegram/messages") return json(res, 200, telegramMessages);
   if (req.method === "GET" && url.pathname === "/api/paypal/config") return json(res, 200, getPayPalConfig());
   if (req.method === "GET" && url.pathname === "/api/bit/config") return json(res, 200, getBitConfig());
   if (req.method === "GET" && url.pathname === "/api/notifications") return json(res, 200, listNotifications());
 
-  if (req.method === "POST" && url.pathname === "/api/whatsapp/local-message") {
-    try {
-      const body = await parseBody(req);
-      return json(res, 200, await addLocalWhatsappMessage(body));
-    } catch (error) {
-      return json(res, 400, { error: "invalid_json", message: error.message });
-    }
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/whatsapp/send") {
+  if (req.method === "POST" && url.pathname === "/api/telegram/local-message") {
     try {
       const body = await parseBody(req);
       if (!body.text) return json(res, 400, { error: "missing_text" });
-      return json(res, 200, await sendWhatsAppText(body));
+      return json(res, 200, await handleIncomingTelegramWebhook({
+        update_id: Date.now(),
+        message: {
+          message_id: Date.now(),
+          date: Math.floor(Date.now() / 1000),
+          chat: { id: body.chatId ?? 123456789, type: body.chatType ?? "group", title: body.chatTitle ?? "בניין רוטשילד 24" },
+          from: { id: body.fromId ?? 987654321, username: body.from ?? "resident" },
+          text: body.text
+        }
+      }));
     } catch (error) {
-      return json(res, 400, { error: "send_failed", message: error.message });
+      return json(res, 400, { error: "telegram_local_message_failed", message: error.message });
     }
   }
 
@@ -261,34 +258,6 @@ export async function handleApi(req, res, url) {
   return json(res, 404, { error: "not_found" });
 }
 
-async function handleWhatsappWebhook(req, res, url) {
-  if (req.method === "GET") {
-    const verification = verifyWebhook(url);
-    if (!verification.ok) {
-      res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
-      res.end("Forbidden");
-      return;
-    }
-
-    res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
-    res.end(verification.challenge);
-    return;
-  }
-
-  if (req.method === "POST") {
-    try {
-      const body = await parseBody(req);
-      const result = await handleIncomingWebhook(body);
-      return json(res, 200, result);
-    } catch (error) {
-      return json(res, 400, { error: "webhook_failed", message: error.message });
-    }
-  }
-
-  res.writeHead(405);
-  res.end("Method Not Allowed");
-}
-
 async function handleTelegramWebhook(req, res) {
   if (req.method !== "POST") {
     res.writeHead(405);
@@ -360,10 +329,6 @@ async function serveStatic(req, res, url) {
 export function createServer() {
   return http.createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-    if (url.pathname === "/webhooks/whatsapp") {
-      await handleWhatsappWebhook(req, res, url);
-      return;
-    }
     if (url.pathname === "/webhooks/telegram") {
       await handleTelegramWebhook(req, res);
       return;

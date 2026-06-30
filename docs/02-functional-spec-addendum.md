@@ -12,7 +12,7 @@
 - רואה מאזן וחיובים אישיים.
 - משלם דרך PayPal Sandbox או BIT simulator.
 - מדווח תקלה דרך Agent.
-- רואה Feed דמוי WhatsApp.
+- רואה Feed דמוי Telegram.
 - ועד רואה Dashboard בסיסי.
 - המערכת רצה ב-Docker וכוללת Kubernetes manifests.
 
@@ -22,7 +22,7 @@
 |---|---|---|
 | PayPal | Sandbox order ו-capture | Live app, חשבון עסקי ואישורים |
 | BIT | Simulator שמעדכן מאזן | TPP credentials, תעודות חתימה ו-Open Banking מלא |
-| WhatsApp | Webhook scaffold ופיד פנימי | Meta Business App, מספר עסקי, webhook ציבורי |
+| Telegram | Webhook scaffold ופיד פנימי | BotFather token ו-webhook ציבורי |
 | Agent | זיהוי כוונות rule-based | מודל AI מלא, memory, escalation |
 | Database | PostgreSQL עם seed ו-migrations קלות | migration tool, backups, managed DB |
 | Kubernetes | manifests מוכנים | cluster אמיתי, TLS, secrets, registry |
@@ -42,7 +42,7 @@
 - כחבר ועד, אני רוצה לראות מי שילם ומי לא, בלי לפרסם זאת בקבוצה.
 - כחבר ועד, אני רוצה לראות תקלות פתוחות ודחופות, כדי לטפל קודם במה שחשוב.
 - כיו"ר ועד, אני רוצה שקיפות בהוצאות, כדי להסביר לדיירים לאן הכסף הולך.
-- כחבר ועד, אני רוצה שכל הודעת WhatsApp חשובה תהפוך לנתון במערכת.
+- כחבר ועד, אני רוצה שכל הודעת Telegram חשובה תהפוך לנתון במערכת.
 
 ### ספק
 
@@ -73,11 +73,11 @@
 - אחרי תשלום מלא מופיע כפתור איפוס דמו לבדיקה נוספת.
 - הקוד מבודד ב-adapter כדי לאפשר חיבור עתידי ל-API אמיתי.
 
-### WhatsApp Feed
+### Telegram Feed
 
 - הודעה שנשלחת בפיד המקומי מופיעה בצ'אט.
 - רענון הודעות לא מקפיץ את המשתמש לראש הדף.
-- webhook path קיים עבור Meta setup עתידי.
+- webhook path קיים עבור BotFather setup עתידי.
 
 ### Agent
 
@@ -99,7 +99,7 @@
 
 - Magic Link מוגבל לדייר יחיד.
 - אין פרסום ציבורי של חייבים.
-- WhatsApp processing דורש הסכמה מפורשת ב-production.
+- Telegram processing דורש הסכמה מפורשת ב-production.
 - דייר יוכל לבקש מחיקת מידע.
 
 ### ביצועים
@@ -160,7 +160,7 @@
 יכולות:
 
 - לוח קהילה.
-- פיד WhatsApp פנימי.
+- פיד Telegram פנימי.
 - הודעות ועד.
 
 המשך:
@@ -186,4 +186,4 @@
 
 ## מסקנה
 
-המפרט המקורי רחב ומתאים כחזון מוצר. ה-MVP הנוכחי מוכיח את הליבה: חשבון דייר, תשלום, Agent בסיסי, WhatsApp-first UI, Docker ו-Kubernetes. הדבר החשוב בהגשה הוא להציג בבירור מה מומש ומה נשאר ב-roadmap.
+המפרט המקורי רחב ומתאים כחזון מוצר. ה-MVP הנוכחי מוכיח את הליבה: חשבון דייר, תשלום, Agent בסיסי, Telegram-first UI, Docker ו-Kubernetes. הדבר החשוב בהגשה הוא להציג בבירור מה מומש ומה נשאר ב-roadmap.

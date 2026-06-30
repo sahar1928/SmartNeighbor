@@ -92,7 +92,7 @@ SmartNeighbor Node App
     +-- Redis
     +-- PayPal Sandbox API
     +-- BIT Adapter
-    +-- WhatsApp Webhook
+    +-- Telegram Webhook
 ```
 
 ב-Docker Compose כל הרכיבים רצים באותו מחשב.
@@ -111,7 +111,7 @@ SmartNeighbor Node App
 | HTTPS | לא חובה | חובה |
 | Scaling | ידני | HPA/Cloud autoscaling |
 | Payments | Sandbox/simulator | ספק סליקה Live |
-| WhatsApp | webhook scaffold | Meta app מאומת |
+| Telegram | webhook scaffold | BotFather token מוגדר |
 
 ## למה לא חייבים Kubernetes עכשיו
 
@@ -166,4 +166,4 @@ http://127.0.0.1:3000/?rt=demo-danny-4b#my-account
 - Postgres בתוך Kubernetes מתאים לדמו, אך production עדיף עם managed database.
 - PayPal עובד ב-Sandbox.
 - BIT הוא simulator עד לקבלת הרשאות Open Banking.
-- WhatsApp API דורש business verification ו-webhook ציבורי.
+- Telegram Bot API דורש business verification ו-webhook ציבורי.

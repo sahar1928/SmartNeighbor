@@ -2,15 +2,15 @@
 
 ## 1. Problem
 
-Residential building management is still handled through fragmented tools: WhatsApp groups, spreadsheets, manual bank transfers, phone calls, and informal memory. This creates payment friction, poor maintenance tracking, low financial transparency, and heavy workload for volunteer committee members.
+Residential building management is still handled through fragmented tools: Telegram groups, spreadsheets, manual bank transfers, phone calls, and informal memory. This creates payment friction, poor maintenance tracking, low financial transparency, and heavy workload for volunteer committee members.
 
-SmartNeighbor solves this by keeping the familiar WhatsApp-first behavior while adding structured management behind it: payments, tickets, community board, shared item library, provider handling, and an AI-ready agent.
+SmartNeighbor solves this by keeping the familiar Telegram-first behavior while adding structured management behind it: payments, tickets, community board, shared item library, provider handling, and an AI-ready agent.
 
 ## 2. Market Research
 
 The market contains partial solutions:
 
-- WhatsApp: universal adoption, but no structure, permissions, payments, or SLA tracking.
+- Telegram: universal adoption, but no structure, permissions, payments, or SLA tracking.
 - Bllink: strong building-payment orientation.
 - Darimpo: building/committee management capabilities.
 - Generic tools: forms, spreadsheets, CRMs, task boards.
@@ -34,7 +34,7 @@ Implemented MVP:
 - Demo reset gated by `ENABLE_DEMO_RESET`.
 - Rule-based Agent with optional OpenAI Responses API adapter.
 - Agent memory, confidence, and low-confidence escalation action.
-- WhatsApp webhook scaffold and local WhatsApp-style feed.
+- Telegram webhook scaffold and local Telegram-style feed.
 - Maintenance tickets, payments, community board, library items, providers, votes.
 - Committee API endpoints with role checks and optional 2FA code.
 - Audit log for sensitive actions and AI decisions.
@@ -79,7 +79,7 @@ The app works without OpenAI credentials and falls back to local rules.
 Implemented scaffold:
 
 - In-app notification queue.
-- WhatsApp/mock sender integration.
+- Telegram/mock sender integration.
 - Payment reminder helper.
 - Emergency alert helper.
 - Notification audit trail.
@@ -192,8 +192,8 @@ kubectl kustomize k8s
 
 ## 12. Known Limitations
 
-- WhatsApp real connection requires Meta Business credentials.
-- WhatsApp API does not manage normal user groups directly.
+- Telegram real connection requires a BotFather token and a public webhook URL.
+- Telegram Bot API does not manage normal user groups directly.
 - PayPal is Sandbox/mock until credentials are set.
 - BIT is simulator until real Open Banking TPP credentials and signing certificates exist.
 - Agent is rule-based unless `OPENAI_API_KEY` is configured.

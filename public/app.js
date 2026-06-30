@@ -74,7 +74,7 @@ function addBubble(kind, content) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-function renderWhatsappMessage(message) {
+function renderTelegramMessage(message) {
   const bubble = document.createElement("div");
   bubble.className = `bubble ${message.direction === "outbound" ? "agent" : "user"}`;
   const time = new Date(message.timestamp).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
@@ -90,12 +90,12 @@ function isScrolledNearBottom(element) {
   return distanceFromBottom < 48;
 }
 
-async function loadWhatsappMessages({ preserveScroll = true, forceScroll = false } = {}) {
-  const log = document.querySelector("#whatsappLog");
+async function loadTelegramMessages({ preserveScroll = true, forceScroll = false } = {}) {
+  const log = document.querySelector("#telegramLog");
   const shouldStayAtBottom = forceScroll || isScrolledNearBottom(log);
   const previousScrollTop = log.scrollTop;
-  const messages = await api("/api/whatsapp/messages");
-  log.replaceChildren(...messages.map(renderWhatsappMessage));
+  const messages = await api("/api/telegram/messages");
+  log.replaceChildren(...messages.map(renderTelegramMessage));
 
   if (shouldStayAtBottom) {
     log.scrollTop = log.scrollHeight;
@@ -255,18 +255,18 @@ document.querySelector("#installButton").addEventListener("click", async () => {
   document.querySelector("#installButton").hidden = true;
 });
 
-document.querySelector("#whatsappForm").addEventListener("submit", async (event) => {
+document.querySelector("#telegramForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const input = document.querySelector("#whatsappInput");
+  const input = document.querySelector("#telegramInput");
   const text = input.value.trim();
   if (!text) return;
 
   input.value = "";
-  await api("/api/whatsapp/local-message", {
+  await api("/api/telegram/local-message", {
     method: "POST",
-    body: JSON.stringify({ text, from: "דייר מהקבוצה" })
+    body: JSON.stringify({ text, from: "resident" })
   });
-  await loadWhatsappMessages({ forceScroll: true });
+  await loadTelegramMessages({ forceScroll: true });
 });
 
 document.querySelector("#paypalPayButton").addEventListener("click", async () => {
@@ -433,7 +433,7 @@ const initialLoads = await Promise.allSettled([
   loadMyAccount(),
   loadPayPalConfig(),
   loadBitConfig(),
-  loadWhatsappMessages({ forceScroll: true }),
+  loadTelegramMessages({ forceScroll: true }),
   loadTickets(),
   loadPayments(),
   loadCommunity(),
@@ -449,5 +449,5 @@ if (failedInitialLoads.length) {
 await handlePayPalReturn();
 
 setInterval(() => {
-  loadWhatsappMessages({ preserveScroll: true }).catch(() => {});
+  loadTelegramMessages({ preserveScroll: true }).catch(() => {});
 }, 5000);

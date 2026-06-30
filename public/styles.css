@@ -185,12 +185,12 @@ ul {
   border-radius: 8px;
 }
 
-.whatsapp-log .bubble {
+.telegram-log .bubble {
   display: grid;
   gap: 2px;
 }
 
-.whatsapp-log small {
+.telegram-log small {
   color: var(--muted);
   font-size: 12px;
 }

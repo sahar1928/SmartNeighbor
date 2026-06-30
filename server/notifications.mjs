@@ -1,5 +1,5 @@
-import { sendWhatsAppText } from "./whatsapp.mjs";
 import { recordAudit } from "./audit.mjs";
+import { sendTelegramText } from "./telegram.mjs";
 
 export const notifications = [];
 
@@ -26,8 +26,8 @@ export async function enqueueNotification({ type, channel = "in_app", to = null,
 }
 
 export async function sendNotification(notification) {
-  if (notification.channel === "whatsapp") {
-    const delivery = await sendWhatsAppText({ to: notification.to, text: notification.message });
+  if (notification.channel === "telegram") {
+    const delivery = await sendTelegramText({ chatId: notification.to, text: notification.message });
     notification.status = delivery.mode === "mock" ? "mock_sent" : "sent";
     notification.delivery = delivery;
     return notification;

@@ -1,6 +1,6 @@
 # SmartNeighbor
 
-MVP runnable implementation for a WhatsApp-first building and community management platform.
+MVP runnable implementation for a Telegram-first building and community management platform.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/sahar1928/SmartNeighbor)
 
@@ -81,59 +81,6 @@ Adminer:
 http://localhost:8080
 ```
 
-## WhatsApp Business Cloud API
-
-The app includes a real WhatsApp webhook and sender integration:
-
-- Webhook verification: `GET /webhooks/whatsapp`
-- Incoming messages: `POST /webhooks/whatsapp`
-- Dashboard feed: `GET /api/whatsapp/messages`
-- Local group simulator: `POST /api/whatsapp/local-message`
-- Outbound send: `POST /api/whatsapp/send`
-
-Create a local env file:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Fill:
-
-```text
-WHATSAPP_VERIFY_TOKEN=your-random-webhook-secret
-WHATSAPP_ACCESS_TOKEN=your-meta-access-token
-WHATSAPP_PHONE_NUMBER_ID=your-meta-phone-number-id
-WHATSAPP_GRAPH_API_VERSION=v24.0
-WHATSAPP_DEFAULT_TO=972525452532
-```
-
-The test recipient number is configured from your WhatsApp number:
-
-```text
-+97252-5452532 becomes 972525452532
-```
-
-Run with Docker:
-
-```powershell
-docker compose --env-file .env up --build
-```
-
-For Meta webhook setup, the callback URL must be public HTTPS. During local development, expose Docker with a tunnel such as ngrok:
-
-```powershell
-ngrok http 3000
-```
-
-Then configure Meta:
-
-```text
-Callback URL: https://YOUR-NGROK-DOMAIN/webhooks/whatsapp
-Verify token: same value as WHATSAPP_VERIFY_TOKEN
-```
-
-Important limitation: Meta's official WhatsApp Cloud API does not let a bot create or manage normal WhatsApp groups. SmartNeighbor therefore supports real 1:1 WhatsApp Business conversations and shows them in the in-app "building group" feed. A real group-style experience can be represented inside SmartNeighbor, while WhatsApp itself remains the resident entry point.
-
 ## Channel-agnostic building Agent
 
 SmartNeighbor's Agent is not tied to one sentence or one chat provider. Any channel can send building operations messages to:
@@ -158,7 +105,7 @@ Invoke-RestMethod `
   -Body $body
 ```
 
-This uses the same Agent router as WhatsApp and Telegram. It can classify and prepare actions for maintenance, payments, collection reminders, resident announcements, votes, expenses, provider onboarding, resident onboarding, shared items, and community posts. You can connect this endpoint to Telegram Bot API, Twilio SMS, Make/Zapier webhooks, a QR-code resident form, or a simple mobile web page.
+This uses the same Agent router as Telegram. It can classify and prepare actions for maintenance, payments, collection reminders, resident announcements, votes, expenses, provider onboarding, resident onboarding, shared items, and community posts. You can connect this endpoint to Telegram Bot API, Twilio SMS, Make/Zapier webhooks, a QR-code resident form, or a simple mobile web page.
 
 ## Telegram Bot
 
@@ -166,6 +113,13 @@ SmartNeighbor can receive real Telegram messages through:
 
 ```text
 POST /webhooks/telegram
+```
+
+For local demos, the browser uses:
+
+```text
+POST /api/telegram/local-message
+GET /api/telegram/messages
 ```
 
 Create a bot:
