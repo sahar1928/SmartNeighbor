@@ -65,7 +65,7 @@ test("maintenance agent message creates a real ticket", async () => {
   }
 });
 
-test("generic inbound endpoint creates maintenance ticket from any channel", async () => {
+test("generic inbound endpoint routes any channel into the building agent", async () => {
   const server = createServer();
   const port = await listen(server);
   try {
@@ -75,21 +75,20 @@ test("generic inbound endpoint creates maintenance ticket from any channel", asy
       body: JSON.stringify({
         channel: "telegram",
         from: "972501234567",
-        text: "אני צריך טכנאי"
+        text: "שלח תזכורת תשלום לכל המאחרים"
       })
     });
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.channel, "telegram");
-    assert.equal(body.intent, "maintenance_report");
-    assert.equal(body.actions.some((action) => action.type === "ticket_created"), true);
-    assert.equal(body.ticket.providerId, "prov-2");
+    assert.equal(body.intent, "payment_reminder_request");
+    assert.equal(body.actions.some((action) => action.type === "payment_reminder_draft"), true);
   } finally {
     server.close();
   }
 });
 
-test("telegram webhook technician request creates maintenance ticket", async () => {
+test("telegram webhook routes committee tasks into the agent", async () => {
   const server = createServer();
   const port = await listen(server);
   try {
@@ -103,16 +102,15 @@ test("telegram webhook technician request creates maintenance ticket", async () 
           date: 1779799200,
           chat: { id: 123456789, type: "private" },
           from: { id: 987654321, username: "resident" },
-          text: "אני צריך טכנאי"
+          text: "תפתח הצבעה על שיפוץ הלובי"
         }
       })
     });
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.received, 1);
-    assert.equal(body.agent.intent, "maintenance_report");
-    assert.equal(body.agent.actions.some((action) => action.type === "ticket_created"), true);
-    assert.equal(body.agent.ticket.providerId, "prov-2");
+    assert.equal(body.agent.intent, "vote_draft");
+    assert.equal(body.agent.actions.some((action) => action.type === "vote_draft"), true);
     assert.equal(body.delivery.mode, "mock");
   } finally {
     server.close();

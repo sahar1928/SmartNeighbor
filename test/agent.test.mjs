@@ -33,3 +33,40 @@ test("keeps shared item requests separate from technician requests", () => {
   assert.equal(result.intent, "borrow_item");
   assert.equal(result.actions[0].type, "borrow_request");
 });
+
+test("summarizes committee operating status", () => {
+  const result = handleAgentMessage({ message: "תן לי סיכום מצב ועד" });
+  assert.equal(result.intent, "committee_overview");
+  assert.equal(result.actions[0].type, "committee_summary");
+  assert.match(result.reply, /קריאות פתוחות/);
+});
+
+test("prepares payment reminder drafts for overdue residents", () => {
+  const result = handleAgentMessage({ message: "שלח תזכורת תשלום לכל המאחרים" });
+  assert.equal(result.intent, "payment_reminder_request");
+  assert.equal(result.actions[0].type, "payment_reminder_draft");
+  assert.equal(result.actions[0].requiresRole, "committee");
+});
+
+test("prepares committee vote drafts", () => {
+  const result = handleAgentMessage({ message: "תפתח הצבעה על חידוש חברת ניקיון" });
+  assert.equal(result.intent, "vote_draft");
+  assert.equal(result.actions[0].type, "vote_draft");
+  assert.match(result.reply, /חידוש חברת ניקיון/);
+});
+
+test("prepares resident announcement drafts", () => {
+  const result = handleAgentMessage({ message: "תודיע לדיירים שמחר יש הפסקת מים" });
+  assert.equal(result.intent, "resident_announcement");
+  assert.equal(result.actions[0].type, "resident_announcement_draft");
+});
+
+test("prepares provider and resident onboarding drafts", () => {
+  const providerResult = handleAgentMessage({ message: "להוסיף ספק חדש לניקיון" });
+  assert.equal(providerResult.intent, "provider_onboarding");
+  assert.equal(providerResult.actions[0].type, "provider_onboarding_draft");
+
+  const residentResult = handleAgentMessage({ message: "דייר חדש נכנס לדירה 8" });
+  assert.equal(residentResult.intent, "resident_onboarding");
+  assert.equal(residentResult.actions[0].type, "resident_onboarding_draft");
+});

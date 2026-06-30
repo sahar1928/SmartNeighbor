@@ -1,4 +1,4 @@
-import { createMaintenanceTicket, items, providers, residents } from "./data.mjs";
+import { buildings, communityPosts, createMaintenanceTicket, items, payments, providers, residents, tickets, votes } from "./data.mjs";
 import { recordAudit } from "./audit.mjs";
 import { classifyWithOpenAI } from "./openai-agent.mjs";
 
@@ -9,6 +9,13 @@ const borrowWords = ["להשאיל", "מלווה", "צריך", "לשאול", "מ
 const lendWords = ["יש לי", "מוסיף", "יכול להשאיל", "להשאלה"];
 const providerWords = ["ספק", "טכנאי", "בעל מקצוע", "איש מקצוע", "אינסטלטור", "חשמלאי", "גנן", "ניקיון", "טלפון"];
 const serviceRequestWords = ["צריך", "צריכה", "צריכים", "צריכות", "להזמין", "תזמינו", "אפשר טכנאי"];
+const committeeSummaryWords = ["מצב ועד", "מצב הועד", "מצב בניין", "מצב הבניין", "סיכום", "דוח", "סטטוס", "תמונת מצב", "מה קורה בבניין"];
+const paymentReminderWords = ["תזכורת תשלום", "תזכיר תשלום", "שלח תזכורת", "גבייה", "גביה", "מאחרים", "איחור תשלום"];
+const voteWords = ["הצבעה", "סקר", "להצביע", "אישור דיירים", "החלטת דיירים"];
+const expenseWords = ["הוצאה", "חשבונית", "לאשר תשלום", "אישור תשלום", "תקציב", "החזר"];
+const announcementWords = ["הודעה לדיירים", "תודיע", "שלח הודעה", "פרסם הודעה", "עדכון לדיירים"];
+const providerAdminWords = ["הוסף ספק", "להוסיף ספק", "ספק חדש", "עדכן ספק"];
+const residentAdminWords = ["דייר חדש", "להוסיף דייר", "הוסף דייר", "עדכן דייר", "דירה חדשה"];
 
 function includesAny(text, words) {
   return words.some((word) => text.includes(word));
@@ -72,6 +79,27 @@ function isServiceRequest(text) {
   return includesAny(text, serviceRequestWords) && includesAny(text, providerWords);
 }
 
+function extractTopic(text) {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  const topic = cleaned.split(" על ").at(-1);
+  return topic && topic !== cleaned ? topic : cleaned;
+}
+
+function buildingSnapshot() {
+  const building = buildings[0];
+  const openTickets = tickets.filter((ticket) => ticket.status !== "closed");
+  const urgentTickets = openTickets.filter((ticket) => ["P0", "P1"].includes(ticket.priority));
+  const latePayments = payments.filter((payment) => payment.status === "late");
+  return { building, openTickets, urgentTickets, latePayments };
+}
+
+function committeeCapabilitiesReply() {
+  return [
+    "אני SmartNeighbor Agent של ועד הבית.",
+    "אפשר לבקש ממני: לפתוח ולטפל בתקלות, למצוא ספקים, לבדוק גבייה ותשלומים, להכין תזכורות לדיירים, לנסח הודעות, לפתוח טיוטת הצבעה, לרשום ספק או דייר חדש, ולעשות סיכום מצב לוועד."
+  ].join(" ");
+}
+
 async function persistAgentActions(result, { text, residentId }) {
   const ticketAction = result.actions?.find((action) => action.type === "ticket_draft");
   const shouldCreateTicket = ticketAction || ["maintenance_report", "emergency"].includes(result.intent);
@@ -111,8 +139,73 @@ export function handleAgentMessage({ message, residentId = "res-1" }) {
   if (!text) {
     return {
       intent: "smalltalk",
-      reply: "אפשר לכתוב לי על תשלום, תקלה, השאלת חפץ, ספק או פרסום לקהילה.",
+      reply: committeeCapabilitiesReply(),
       actions: []
+    };
+  }
+
+  if (includesAny(normalized, committeeSummaryWords)) {
+    const { building, openTickets, urgentTickets, latePayments } = buildingSnapshot();
+    return {
+      intent: "committee_overview",
+      reply: `סיכום ועד עבור ${building.name}: ${openTickets.length} קריאות פתוחות, ${urgentTickets.length} דחופות, ${latePayments.length} דיירים באיחור תשלום, יתרת בניין ₪${building.balance}.`,
+      actions: [
+        { type: "committee_summary", openTickets: openTickets.length, urgentTickets: urgentTickets.length, latePayments: latePayments.length, balance: building.balance }
+      ]
+    };
+  }
+
+  if (includesAny(normalized, paymentReminderWords)) {
+    const latePayments = payments.filter((payment) => payment.status === "late");
+    return {
+      intent: "payment_reminder_request",
+      reply: latePayments.length
+        ? `מצאתי ${latePayments.length} דיירים באיחור. הכנתי טיוטת תזכורת גבייה לשליחה אחרי אישור ועד.`
+        : "לא מצאתי כרגע דיירים באיחור תשלום.",
+      actions: latePayments.length
+        ? [{ type: "payment_reminder_draft", paymentIds: latePayments.map((payment) => payment.id), requiresRole: "committee" }]
+        : []
+    };
+  }
+
+  if (includesAny(normalized, voteWords)) {
+    const topic = extractTopic(text);
+    return {
+      intent: "vote_draft",
+      reply: `הכנתי טיוטת הצבעה בנושא: ${topic}. ועד הבית יכול לאשר, לערוך אפשרויות, ולהגדיר מועד סגירה.`,
+      actions: [{ type: "vote_draft", title: topic, defaultOptions: ["בעד", "נגד", "צריך עוד מידע"], requiresRole: "committee" }]
+    };
+  }
+
+  if (includesAny(normalized, expenseWords)) {
+    return {
+      intent: "expense_review",
+      reply: "זיהיתי בקשת הוצאה/חשבונית. הכנתי אותה לבדיקה של ועד הבית עם דרישה לסכום, ספק, וקובץ אסמכתא לפני אישור.",
+      actions: [{ type: "expense_review_draft", body: text, requiresRole: "committee" }]
+    };
+  }
+
+  if (includesAny(normalized, announcementWords)) {
+    return {
+      intent: "resident_announcement",
+      reply: "ניסחתי טיוטת הודעה לדיירים. לפני פרסום אדרוש אישור ועד ובחירת ערוץ: Telegram, WhatsApp, או לוח הקהילה.",
+      actions: [{ type: "resident_announcement_draft", body: text, channels: ["telegram", "whatsapp", "community_feed"], requiresRole: "committee" }]
+    };
+  }
+
+  if (includesAny(normalized, providerAdminWords)) {
+    return {
+      intent: "provider_onboarding",
+      reply: "הכנתי טיוטת ספק חדש. צריך להשלים שם, תחום, טלפון, דירוג/המלצה ותנאי שירות לפני שמוסיפים אותו למאגר.",
+      actions: [{ type: "provider_onboarding_draft", body: text, requiresRole: "committee" }]
+    };
+  }
+
+  if (includesAny(normalized, residentAdminWords)) {
+    return {
+      intent: "resident_onboarding",
+      reply: "הכנתי טיוטת דייר/דירה חדשה. צריך להשלים שם, דירה, קומה, טלפון והרשאות לפני יצירת Magic Link.",
+      actions: [{ type: "resident_onboarding_draft", body: text, requiresRole: "committee" }]
     };
   }
 

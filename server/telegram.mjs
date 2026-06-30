@@ -41,7 +41,7 @@ function extractTelegramTextMessage(payload) {
 
 function commandReply(text) {
   if (text.startsWith("/start") || text.startsWith("/help")) {
-    return "שלום, אני SmartNeighbor. אפשר לכתוב לי למשל: \"אני צריך טכנאי\", \"יש נזילה בלובי\", או \"כמה אני חייב לועד\".";
+    return "שלום, אני SmartNeighbor Agent. אני יכול לעזור לוועד הבית עם תקלות, ספקים, גבייה ותזכורות תשלום, הודעות לדיירים, הצבעות, הוצאות, דיירים חדשים, חפצים משותפים וסיכום מצב בניין.";
   }
   return null;
 }

@@ -10,13 +10,14 @@ MVP runnable implementation for a WhatsApp-first building and community manageme
 - HTTP API with seeded data for buildings, residents, payments, maintenance tickets, providers, community posts, shared items, and votes.
 - Docker Compose startup stack with Node, PostgreSQL, Redis, and Adminer.
 - Kubernetes stack with app deployment, Postgres StatefulSet, Redis, ingress, HPA, and PDB.
-- Rule-based SmartNeighbor Agent simulator for core intents:
-  - maintenance reports
-  - payment queries
-  - item borrowing
-  - item lending
-  - provider lookup
-  - community posts
+- Rule-based SmartNeighbor Agent simulator for building committee operations:
+  - maintenance reports and emergency triage
+  - provider lookup and provider onboarding drafts
+  - payment queries and collection reminder drafts
+  - resident announcements
+  - vote drafts and expense review drafts
+  - resident onboarding drafts
+  - item borrowing/lending and community posts
 - Optional OpenAI Agent adapter with conversation memory, confidence score, escalation actions, and audit log.
 - Role-protected committee API for residents, charges, payments, votes, expense approvals, providers, reminders, and audit viewing.
 - Production safety flags for demo reset, committee 2FA, hashed Magic Link support, and payment provider modes.
@@ -133,9 +134,9 @@ Verify token: same value as WHATSAPP_VERIFY_TOKEN
 
 Important limitation: Meta's official WhatsApp Cloud API does not let a bot create or manage normal WhatsApp groups. SmartNeighbor therefore supports real 1:1 WhatsApp Business conversations and shows them in the in-app "building group" feed. A real group-style experience can be represented inside SmartNeighbor, while WhatsApp itself remains the resident entry point.
 
-## Alternative message input without WhatsApp
+## Channel-agnostic building Agent
 
-If you do not want to use Meta WhatsApp Business, send messages from any channel to:
+SmartNeighbor's Agent is not tied to one sentence or one chat provider. Any channel can send building operations messages to:
 
 ```text
 POST /api/inbound/message
@@ -147,7 +148,7 @@ Example:
 $body = @{
   channel = "telegram"
   from = "972501234567"
-  text = "אני צריך טכנאי"
+  text = "שלח תזכורת תשלום לכל המאחרים"
 } | ConvertTo-Json
 
 Invoke-RestMethod `
@@ -157,7 +158,7 @@ Invoke-RestMethod `
   -Body $body
 ```
 
-This uses the same Agent logic as WhatsApp. A message like `אני צריך טכנאי` creates a maintenance ticket, assigns the matching provider, and returns the Hebrew reply. You can connect this endpoint to Telegram Bot API, Twilio SMS, Make/Zapier webhooks, a QR-code resident form, or a simple mobile web page.
+This uses the same Agent router as WhatsApp and Telegram. It can classify and prepare actions for maintenance, payments, collection reminders, resident announcements, votes, expenses, provider onboarding, resident onboarding, shared items, and community posts. You can connect this endpoint to Telegram Bot API, Twilio SMS, Make/Zapier webhooks, a QR-code resident form, or a simple mobile web page.
 
 ## Telegram Bot
 
@@ -208,13 +209,16 @@ Invoke-RestMethod `
   } | ConvertTo-Json)
 ```
 
-Now send the bot a message such as:
+Now send the bot building committee tasks such as:
 
 ```text
-אני צריך טכנאי
+שלח תזכורת תשלום לכל המאחרים
+תפתח הצבעה על שיפוץ הלובי
+תודיע לדיירים שמחר יש הפסקת מים
+יש נזילה בלובי
 ```
 
-The Telegram webhook sends the text into the same Agent flow, creates a maintenance ticket, and replies in Telegram. Without `TELEGRAM_BOT_TOKEN`, the webhook still works in mock mode for tests and local demos, but it will not send a real Telegram reply.
+The Telegram webhook sends the text into the same building Agent flow. Depending on intent, the Agent can create maintenance tickets, prepare committee approval drafts, return payment information, draft votes, draft announcements, or route provider/resident onboarding. Without `TELEGRAM_BOT_TOKEN`, the webhook still works in mock mode for tests and local demos, but it will not send a real Telegram reply.
 
 ## Resident Payments
 
