@@ -65,6 +65,88 @@ test("maintenance agent message creates a real ticket", async () => {
   }
 });
 
+test("generic inbound endpoint creates maintenance ticket from any channel", async () => {
+  const server = createServer();
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/inbound/message`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        channel: "telegram",
+        from: "972501234567",
+        text: "אני צריך טכנאי"
+      })
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.channel, "telegram");
+    assert.equal(body.intent, "maintenance_report");
+    assert.equal(body.actions.some((action) => action.type === "ticket_created"), true);
+    assert.equal(body.ticket.providerId, "prov-2");
+  } finally {
+    server.close();
+  }
+});
+
+test("telegram webhook technician request creates maintenance ticket", async () => {
+  const server = createServer();
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/webhooks/telegram`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        update_id: 1001,
+        message: {
+          message_id: 7,
+          date: 1779799200,
+          chat: { id: 123456789, type: "private" },
+          from: { id: 987654321, username: "resident" },
+          text: "אני צריך טכנאי"
+        }
+      })
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.received, 1);
+    assert.equal(body.agent.intent, "maintenance_report");
+    assert.equal(body.agent.actions.some((action) => action.type === "ticket_created"), true);
+    assert.equal(body.agent.ticket.providerId, "prov-2");
+    assert.equal(body.delivery.mode, "mock");
+  } finally {
+    server.close();
+  }
+});
+
+test("telegram webhook answers start command", async () => {
+  const server = createServer();
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/webhooks/telegram`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        update_id: 1002,
+        message: {
+          message_id: 8,
+          date: 1779799200,
+          chat: { id: 123456789, type: "private" },
+          from: { id: 987654321, username: "resident" },
+          text: "/start"
+        }
+      })
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.received, 1);
+    assert.equal(body.command, true);
+    assert.match(body.delivery.message.text, /SmartNeighbor/);
+  } finally {
+    server.close();
+  }
+});
+
 test("whatsapp webhook verification returns challenge", async () => {
   const server = createServer();
   const port = await listen(server);
@@ -106,6 +188,41 @@ test("whatsapp webhook receives text and produces reply", async () => {
     assert.equal(response.status, 200);
     assert.equal(body.received, 1);
     assert.equal(body.replies[0].agent.intent, "emergency");
+  } finally {
+    server.close();
+  }
+});
+
+test("whatsapp webhook technician request creates maintenance ticket", async () => {
+  const server = createServer();
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/webhooks/whatsapp`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        entry: [{
+          changes: [{
+            value: {
+              metadata: { display_phone_number: "972300000000" },
+              messages: [{
+                id: "wamid.technician",
+                from: "972501234567",
+                timestamp: "1779799200",
+                type: "text",
+                text: { body: "אני צריך טכנאי" }
+              }]
+            }
+          }]
+        }]
+      })
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.received, 1);
+    assert.equal(body.replies[0].agent.intent, "maintenance_report");
+    assert.equal(body.replies[0].agent.actions.some((action) => action.type === "ticket_created"), true);
+    assert.equal(body.replies[0].agent.ticket.providerId, "prov-2");
   } finally {
     server.close();
   }

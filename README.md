@@ -133,6 +133,89 @@ Verify token: same value as WHATSAPP_VERIFY_TOKEN
 
 Important limitation: Meta's official WhatsApp Cloud API does not let a bot create or manage normal WhatsApp groups. SmartNeighbor therefore supports real 1:1 WhatsApp Business conversations and shows them in the in-app "building group" feed. A real group-style experience can be represented inside SmartNeighbor, while WhatsApp itself remains the resident entry point.
 
+## Alternative message input without WhatsApp
+
+If you do not want to use Meta WhatsApp Business, send messages from any channel to:
+
+```text
+POST /api/inbound/message
+```
+
+Example:
+
+```powershell
+$body = @{
+  channel = "telegram"
+  from = "972501234567"
+  text = "אני צריך טכנאי"
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Uri "http://localhost:3000/api/inbound/message" `
+  -Method Post `
+  -ContentType "application/json; charset=utf-8" `
+  -Body $body
+```
+
+This uses the same Agent logic as WhatsApp. A message like `אני צריך טכנאי` creates a maintenance ticket, assigns the matching provider, and returns the Hebrew reply. You can connect this endpoint to Telegram Bot API, Twilio SMS, Make/Zapier webhooks, a QR-code resident form, or a simple mobile web page.
+
+## Telegram Bot
+
+SmartNeighbor can receive real Telegram messages through:
+
+```text
+POST /webhooks/telegram
+```
+
+Create a bot:
+
+1. Open Telegram and message `@BotFather`.
+2. Send `/newbot`.
+3. Copy the bot token into `.env`:
+
+```text
+TELEGRAM_BOT_TOKEN=123456:your-bot-token
+TELEGRAM_WEBHOOK_SECRET=choose-a-random-secret
+```
+
+Run the app:
+
+```powershell
+node server/index.mjs
+```
+
+Telegram requires a public HTTPS webhook URL. For local development:
+
+```powershell
+ngrok http 3000
+```
+
+Set the webhook:
+
+```powershell
+$token = "YOUR_TELEGRAM_BOT_TOKEN"
+$secret = "choose-a-random-secret"
+$url = "https://YOUR-NGROK-DOMAIN/webhooks/telegram"
+
+Invoke-RestMethod `
+  -Uri "https://api.telegram.org/bot$token/setWebhook" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body (@{
+    url = $url
+    secret_token = $secret
+    allowed_updates = @("message", "edited_message")
+  } | ConvertTo-Json)
+```
+
+Now send the bot a message such as:
+
+```text
+אני צריך טכנאי
+```
+
+The Telegram webhook sends the text into the same Agent flow, creates a maintenance ticket, and replies in Telegram. Without `TELEGRAM_BOT_TOKEN`, the webhook still works in mock mode for tests and local demos, but it will not send a real Telegram reply.
+
 ## Resident Payments
 
 The resident portal uses a Magic Link instead of login:

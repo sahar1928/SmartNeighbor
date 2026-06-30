@@ -20,3 +20,16 @@ test("finds a shared item for borrowing", () => {
   assert.equal(result.intent, "borrow_item");
   assert.equal(result.actions[0].type, "borrow_request");
 });
+
+test("routes generic technician requests to maintenance", () => {
+  const result = handleAgentMessage({ message: "אני צריך טכנאי" });
+  assert.equal(result.intent, "maintenance_report");
+  assert.equal(result.actions[0].type, "ticket_draft");
+  assert.equal(result.actions[0].providerId, "prov-2");
+});
+
+test("keeps shared item requests separate from technician requests", () => {
+  const result = handleAgentMessage({ message: "צריך סולם" });
+  assert.equal(result.intent, "borrow_item");
+  assert.equal(result.actions[0].type, "borrow_request");
+});
