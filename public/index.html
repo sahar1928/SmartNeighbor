@@ -128,11 +128,11 @@
         <div id="telegram" class="panel telegram-panel">
           <div class="section-title">
             <span class="icon">TG</span>
-            <h2>קבוצת Telegram חדשה</h2>
+            <h2>Telegram Live Sync</h2>
           </div>
           <div class="group-header">
-            <strong>בניין רוטשילד 24 · SmartNeighbor</strong>
-            <span class="badge blue">מוכן ל-webhook</span>
+            <strong id="telegramGroupName">ממתין להודעה מקבוצה</strong>
+            <span id="telegramSyncStatus" class="badge blue">webhook פעיל</span>
           </div>
           <div id="telegramLog" class="chat-log telegram-log" aria-live="polite"></div>
           <form id="telegramForm" class="agent-form">
@@ -263,6 +263,6 @@
       <a href="#community">קהילה</a>
     </nav>
 
-    <script src="/app.js?v=cloudfix3" type="module"></script>
+    <script src="/app.js?v=telegram-sync1" type="module"></script>
   </body>
 </html>

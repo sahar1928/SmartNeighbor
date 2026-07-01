@@ -4,8 +4,20 @@ const botToken = process.env.TELEGRAM_BOT_TOKEN ?? "";
 const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET ?? "";
 
 export const telegramMessages = [];
+const telegramChats = new Map();
 
 function addTelegramMessage(message) {
+  if (message.chatId) {
+    const current = telegramChats.get(String(message.chatId)) ?? {};
+    telegramChats.set(String(message.chatId), {
+      ...current,
+      id: message.chatId,
+      type: message.chatType ?? current.type ?? "unknown",
+      title: message.chatTitle ?? current.title ?? String(message.chatId),
+      lastSeenAt: message.timestamp ?? new Date().toISOString()
+    });
+  }
+
   const entry = {
     id: message.id ?? `telegram-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     timestamp: message.timestamp ?? new Date().toISOString(),
@@ -29,6 +41,8 @@ function extractTelegramTextMessage(payload) {
     messageId: message.message_id,
     chatId: message.chat.id,
     chatType: message.chat.type,
+    chatTitle: message.chat.title
+      ?? ([message.chat.first_name, message.chat.last_name].filter(Boolean).join(" ") || String(message.chat.id)),
     from: message.from?.username
       ? `@${message.from.username}`
       : String(message.from?.id ?? message.chat.id),
@@ -47,9 +61,12 @@ function commandReply(text) {
 }
 
 export async function sendTelegramText({ chatId, text }) {
+  const chat = telegramChats.get(String(chatId));
   const outbound = addTelegramMessage({
     direction: "outbound",
     chatId,
+    chatType: chat?.type,
+    chatTitle: chat?.title,
     from: "SmartNeighbor Bot",
     to: String(chatId),
     text,
@@ -92,6 +109,8 @@ export async function handleIncomingTelegramWebhook(payload) {
   addTelegramMessage({
     direction: "inbound",
     chatId: incoming.chatId,
+    chatType: incoming.chatType,
+    chatTitle: incoming.chatTitle,
     from: incoming.from,
     to: "SmartNeighbor Bot",
     text: incoming.text,

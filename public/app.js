@@ -80,7 +80,8 @@ function renderTelegramMessage(message) {
   const time = new Date(message.timestamp).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
   bubble.innerHTML = `<strong></strong><small></small><span></span>`;
   bubble.querySelector("strong").textContent = message.from;
-  bubble.querySelector("small").textContent = ` · ${time} · ${message.source}`;
+  const chatLabel = message.chatTitle ? ` · ${message.chatTitle}` : "";
+  bubble.querySelector("small").textContent = ` · ${time}${chatLabel} · ${message.source}`;
   bubble.querySelector("span").textContent = message.text;
   return bubble;
 }
@@ -95,6 +96,11 @@ async function loadTelegramMessages({ preserveScroll = true, forceScroll = false
   const shouldStayAtBottom = forceScroll || isScrolledNearBottom(log);
   const previousScrollTop = log.scrollTop;
   const messages = await api("/api/telegram/messages");
+  const latestGroupMessage = [...messages].reverse().find((message) => message.chatTitle);
+  if (latestGroupMessage) {
+    text("#telegramGroupName", latestGroupMessage.chatTitle);
+    text("#telegramSyncStatus", latestGroupMessage.chatType === "private" ? "צ׳אט פרטי מסונכרן" : "קבוצה מסונכרנת");
+  }
   log.replaceChildren(...messages.map(renderTelegramMessage));
 
   if (shouldStayAtBottom) {
@@ -264,7 +270,7 @@ document.querySelector("#telegramForm").addEventListener("submit", async (event)
   input.value = "";
   await api("/api/telegram/local-message", {
     method: "POST",
-    body: JSON.stringify({ text, from: "resident" })
+    body: JSON.stringify({ text, from: "resident", chatTitle: "בניין רוטשילד 24 · SmartNeighbor" })
   });
   await loadTelegramMessages({ forceScroll: true });
 });
