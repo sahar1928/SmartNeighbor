@@ -65,6 +65,7 @@ export async function handleApi(req, res, url) {
       checks: {
         http: "ok",
         databaseConfigured: Boolean(process.env.DATABASE_URL),
+        databaseMode: process.env.DATABASE_MODE ?? "memory",
         redisConfigured: Boolean(process.env.REDIS_URL),
         telegramConfigured: Boolean(process.env.TELEGRAM_BOT_TOKEN)
       }

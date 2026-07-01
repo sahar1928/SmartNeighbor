@@ -8,8 +8,9 @@ const rootDir = fileURLToPath(new URL("..", import.meta.url));
 const databaseDir = join(rootDir, "database");
 const databaseUrl = process.env.DATABASE_URL ?? "";
 const useSsl = process.env.DATABASE_SSL === "true";
+const databaseMode = process.env.DATABASE_MODE ?? "memory";
 
-export const dbEnabled = Boolean(databaseUrl);
+export const dbEnabled = Boolean(databaseUrl) && databaseMode === "postgres";
 
 export const pool = dbEnabled
   ? new Pool({

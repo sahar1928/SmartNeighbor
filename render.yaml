@@ -34,6 +34,8 @@ services:
         fromDatabase:
           name: smartneighbor-db
           property: connectionString
+      - key: DATABASE_MODE
+        value: memory
       - key: DATABASE_SSL
         value: "true"
       - key: REDIS_URL
