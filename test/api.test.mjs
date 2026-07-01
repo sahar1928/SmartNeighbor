@@ -164,6 +164,44 @@ test("telegram local message simulator feeds the same agent flow", async () => {
   }
 });
 
+test("sync endpoint reflects telegram-created maintenance tickets", async () => {
+  const server = createServer();
+  const port = await listen(server);
+  try {
+    const beforeResponse = await fetch(`http://127.0.0.1:${port}/api/sync?token=demo-danny-4b`);
+    const before = await beforeResponse.json();
+
+    const telegramResponse = await fetch(`http://127.0.0.1:${port}/webhooks/telegram`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        update_id: 2001,
+        message: {
+          message_id: 21,
+          date: 1779799300,
+          chat: { id: -100123456789, type: "supergroup", title: "קבוצת בניין רוטשילד 24" },
+          from: { id: 987654321, username: "resident" },
+          text: "יש נזילה בלובי"
+        }
+      })
+    });
+    const telegramBody = await telegramResponse.json();
+    assert.equal(telegramResponse.status, 200);
+    assert.equal(telegramBody.agent.intent, "maintenance_report");
+    assert.equal(telegramBody.agent.actions.some((action) => action.type === "ticket_created"), true);
+
+    const afterResponse = await fetch(`http://127.0.0.1:${port}/api/sync?token=demo-danny-4b`);
+    const after = await afterResponse.json();
+    assert.equal(afterResponse.status, 200);
+    assert.equal(after.tickets.length, before.tickets.length + 1);
+    assert.equal(after.tickets[0].id, telegramBody.agent.ticket.id);
+    assert.equal(after.telegramMessages.at(-1).direction, "outbound");
+    assert.equal(after.telegramMessages.some((message) => message.chatTitle === "קבוצת בניין רוטשילד 24"), true);
+  } finally {
+    server.close();
+  }
+});
+
 test("resident magic link returns only personal account", async () => {
   const server = createServer();
   const port = await listen(server);

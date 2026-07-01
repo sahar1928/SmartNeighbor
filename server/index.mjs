@@ -85,6 +85,26 @@ export async function handleApi(req, res, url) {
     return json(res, 200, await getDashboard());
   }
 
+  if (req.method === "GET" && url.pathname === "/api/sync") {
+    const token = url.searchParams.get("token");
+    const [dashboard, account, maintenanceTickets] = await Promise.all([
+      getDashboard(),
+      token ? getResidentAccount(token) : null,
+      listMaintenanceTickets()
+    ]);
+
+    return json(res, 200, {
+      syncedAt: new Date().toISOString(),
+      dashboard,
+      account,
+      tickets: maintenanceTickets,
+      payments,
+      telegramMessages,
+      communityPosts,
+      items
+    });
+  }
+
   if (req.method === "GET" && url.pathname === "/api/me") {
     const account = await getResidentAccount(url.searchParams.get("token"));
     if (!account) return json(res, 403, { error: "invalid_magic_link" });

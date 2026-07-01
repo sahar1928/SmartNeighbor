@@ -4,6 +4,7 @@ const residentToken = searchParams.get("rt") || searchParams.get("token") || loc
 localStorage.setItem("smartneighbor_token", residentToken);
 let deferredInstallPrompt = null;
 let appConfig = { demoResetEnabled: false };
+let lastTelegramRenderKey = "";
 
 function setDemoResetAvailable(enabled) {
   const button = document.querySelector("#resetDemoAccountButton");
@@ -92,16 +93,23 @@ function isScrolledNearBottom(element) {
 }
 
 async function loadTelegramMessages({ preserveScroll = true, forceScroll = false } = {}) {
+  return renderTelegramMessages(await api("/api/telegram/messages"), { preserveScroll, forceScroll });
+}
+
+function renderTelegramMessages(messages, { preserveScroll = true, forceScroll = false } = {}) {
   const log = document.querySelector("#telegramLog");
   const shouldStayAtBottom = forceScroll || isScrolledNearBottom(log);
   const previousScrollTop = log.scrollTop;
-  const messages = await api("/api/telegram/messages");
+  const renderKey = messages.map((message) => `${message.id}:${message.timestamp}`).join("|");
   const latestGroupMessage = [...messages].reverse().find((message) => message.chatTitle);
   if (latestGroupMessage) {
     text("#telegramGroupName", latestGroupMessage.chatTitle);
     text("#telegramSyncStatus", latestGroupMessage.chatType === "private" ? "צ׳אט פרטי מסונכרן" : "קבוצה מסונכרנת");
   }
-  log.replaceChildren(...messages.map(renderTelegramMessage));
+  if (renderKey !== lastTelegramRenderKey) {
+    log.replaceChildren(...messages.map(renderTelegramMessage));
+    lastTelegramRenderKey = renderKey;
+  }
 
   if (shouldStayAtBottom) {
     log.scrollTop = log.scrollHeight;
@@ -111,7 +119,10 @@ async function loadTelegramMessages({ preserveScroll = true, forceScroll = false
 }
 
 async function loadDashboard() {
-  const dashboard = await api("/api/dashboard");
+  return renderDashboard(await api("/api/dashboard"));
+}
+
+function renderDashboard(dashboard) {
   text("#buildingName", dashboard.building.name);
   text("#collectionRate", `${dashboard.stats.collectionRate}%`);
   text("#balance", formatShekel.format(dashboard.stats.balance));
@@ -126,6 +137,7 @@ async function loadDashboard() {
     return li;
   });
   document.querySelector("#attentionList").replaceChildren(...attentionItems);
+  return dashboard;
 }
 
 async function loadAppConfig() {
@@ -135,7 +147,10 @@ async function loadAppConfig() {
 }
 
 async function loadMyAccount() {
-  const account = await api(`/api/me?token=${encodeURIComponent(residentToken)}`);
+  return renderMyAccount(await api(`/api/me?token=${encodeURIComponent(residentToken)}`));
+}
+
+function renderMyAccount(account) {
   text("#accountIdentity", `${account.resident.name} · דירה ${account.resident.apartment} · קומה ${account.resident.floor}`);
   text("#myOpenBalance", formatShekel.format(account.balance.open));
   text("#myPaidTotal", formatShekel.format(account.balance.paidThisYear));
@@ -192,7 +207,10 @@ async function loadBitConfig() {
 }
 
 async function loadTickets() {
-  const tickets = await api("/api/tickets");
+  return renderTickets(await api("/api/tickets"));
+}
+
+function renderTickets(tickets) {
   renderList("#ticketList", tickets.map((ticket) => card({
     title: `${ticket.id} · ${ticket.title}`,
     meta: `${ticket.location} · ${ticket.reporter}`,
@@ -200,10 +218,14 @@ async function loadTickets() {
     badge: `${ticket.priority} · ${ticket.status}`,
     badgeClass: ticket.priority === "P0" ? "red" : "blue"
   })));
+  return tickets;
 }
 
 async function loadPayments() {
-  const payments = await api("/api/payments");
+  return renderPayments(await api("/api/payments"));
+}
+
+function renderPayments(payments) {
   renderList("#paymentList", payments.map((payment) => card({
     title: payment.residentName,
     meta: payment.method ? `שולם דרך ${payment.method}` : "טרם שולם",
@@ -211,10 +233,14 @@ async function loadPayments() {
     badge: payment.status === "paid" ? "שולם" : "באיחור",
     badgeClass: payment.status === "paid" ? "blue" : "red"
   })));
+  return payments;
 }
 
 async function loadCommunity() {
-  const posts = await api("/api/community");
+  return renderCommunity(await api("/api/community"));
+}
+
+function renderCommunity(posts) {
   renderList("#communityList", posts.map((post) => card({
     title: post.title,
     meta: `${post.author} · ${post.channel}`,
@@ -222,10 +248,14 @@ async function loadCommunity() {
     badge: post.pinned ? "נעוץ" : "פעיל",
     badgeClass: post.pinned ? "gold" : ""
   })));
+  return posts;
 }
 
 async function loadItems() {
-  const items = await api("/api/items");
+  return renderItems(await api("/api/items"));
+}
+
+function renderItems(items) {
   renderList("#itemList", items.map((item) => card({
     title: item.name,
     meta: `${item.owner}, דירה ${item.apartment}`,
@@ -233,6 +263,22 @@ async function loadItems() {
     badge: item.status === "available" ? "זמין" : "מושאל",
     badgeClass: item.status === "available" ? "blue" : "gold"
   })));
+  return items;
+}
+
+async function loadLiveState({ preserveTelegramScroll = true, forceTelegramScroll = false } = {}) {
+  const state = await api(`/api/sync?token=${encodeURIComponent(residentToken)}`);
+  renderDashboard(state.dashboard);
+  if (state.account) renderMyAccount(state.account);
+  renderTelegramMessages(state.telegramMessages, {
+    preserveScroll: preserveTelegramScroll,
+    forceScroll: forceTelegramScroll
+  });
+  renderTickets(state.tickets);
+  renderPayments(state.payments);
+  renderCommunity(state.communityPosts);
+  renderItems(state.items);
+  return state;
 }
 
 document.querySelector("#agentForm").addEventListener("submit", async (event) => {
@@ -249,7 +295,7 @@ document.querySelector("#agentForm").addEventListener("submit", async (event) =>
   });
   addBubble("agent", result.reply);
   if (result.ticket || result.actions?.some((action) => action.type === "ticket_created")) {
-    await Promise.all([loadTickets(), loadDashboard()]);
+    await loadLiveState();
   }
 });
 
@@ -272,7 +318,7 @@ document.querySelector("#telegramForm").addEventListener("submit", async (event)
     method: "POST",
     body: JSON.stringify({ text, from: "resident", chatTitle: "בניין רוטשילד 24 · SmartNeighbor" })
   });
-  await loadTelegramMessages({ forceScroll: true });
+  await loadLiveState({ forceTelegramScroll: true });
 });
 
 document.querySelector("#paypalPayButton").addEventListener("click", async () => {
@@ -311,7 +357,7 @@ document.querySelector("#paypalPayButton").addEventListener("click", async () =>
   });
 
   status.textContent = `PayPal ${captured.mode} capture הושלם: ${formatShekel.format(captured.payment.amount)}.`;
-  await Promise.all([loadMyAccount(), loadPayments(), loadDashboard()]);
+  await loadLiveState();
 });
 
 document.querySelector("#bitPayButton").addEventListener("click", async () => {
@@ -346,7 +392,7 @@ document.querySelector("#bitPayButton").addEventListener("click", async () => {
   });
 
   status.textContent = `BIT ${captured.mode} הושלם: ${formatShekel.format(captured.payment.amount)}.`;
-  await Promise.all([loadMyAccount(), loadPayments(), loadDashboard()]);
+  await loadLiveState();
 });
 
 document.querySelector("#resetDemoAccountButton").addEventListener("click", async () => {
@@ -364,7 +410,7 @@ document.querySelector("#resetDemoAccountButton").addEventListener("click", asyn
       body: JSON.stringify({ token: residentToken })
     });
     status.textContent = "הדמו אופס. אפשר לבדוק תשלום נוסף.";
-    await Promise.all([loadMyAccount(), loadPayments(), loadDashboard()]);
+    await loadLiveState();
   } catch (error) {
     setDemoResetAvailable(false);
     status.textContent = "איפוס הדמו לא זמין בסביבה הזו.";
@@ -397,7 +443,7 @@ async function handlePayPalReturn() {
   });
   sessionStorage.removeItem("smartneighbor_pending_paypal");
   status.textContent = `PayPal ${captured.mode} capture הושלם: ${formatShekel.format(captured.payment.amount)}.`;
-  await Promise.all([loadMyAccount(), loadPayments(), loadDashboard()]);
+  await loadLiveState();
 }
 
 document.querySelector("#quickTicketForm").addEventListener("submit", async (event) => {
@@ -412,7 +458,7 @@ document.querySelector("#quickTicketForm").addEventListener("submit", async (eve
     body: JSON.stringify({ message: `${description} ב${location}`, residentId: "res-1" })
   });
   status.textContent = result.reply;
-  await Promise.all([loadTickets(), loadDashboard()]);
+  await loadLiveState();
 });
 
 document.querySelector("#quickItemForm").addEventListener("submit", async (event) => {
@@ -435,15 +481,9 @@ setDemoResetAvailable(false);
 await loadAppConfig().catch(() => {});
 
 const initialLoads = await Promise.allSettled([
-  loadDashboard(),
-  loadMyAccount(),
+  loadLiveState({ forceTelegramScroll: true }),
   loadPayPalConfig(),
-  loadBitConfig(),
-  loadTelegramMessages({ forceScroll: true }),
-  loadTickets(),
-  loadPayments(),
-  loadCommunity(),
-  loadItems()
+  loadBitConfig()
 ]);
 
 const failedInitialLoads = initialLoads.filter((result) => result.status === "rejected");
@@ -455,5 +495,5 @@ if (failedInitialLoads.length) {
 await handlePayPalReturn();
 
 setInterval(() => {
-  loadTelegramMessages({ preserveScroll: true }).catch(() => {});
-}, 5000);
+  loadLiveState({ preserveTelegramScroll: true }).catch(() => {});
+}, 3000);
