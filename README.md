@@ -12,6 +12,7 @@ MVP runnable implementation for a Telegram-first building and community manageme
 - Kubernetes stack with app deployment, Postgres StatefulSet, Redis, ingress, HPA, and PDB.
 - Rule-based SmartNeighbor Agent simulator for building committee operations:
   - maintenance reports and emergency triage
+  - maintenance status questions
   - provider lookup and provider onboarding drafts
   - payment queries and collection reminder drafts
   - resident announcements
@@ -105,7 +106,7 @@ Invoke-RestMethod `
   -Body $body
 ```
 
-This uses the same Agent router as Telegram. It can classify and prepare actions for maintenance, payments, collection reminders, resident announcements, votes, expenses, provider onboarding, resident onboarding, shared items, and community posts. You can connect this endpoint to Telegram Bot API, Twilio SMS, Make/Zapier webhooks, a QR-code resident form, or a simple mobile web page.
+This uses the same Agent router as Telegram. It can classify and prepare actions for maintenance reports, maintenance status questions, payments, collection reminders, resident announcements, votes, expenses, provider lookup/onboarding, resident onboarding, shared items, and community posts. You can connect this endpoint to Telegram Bot API, Twilio SMS, Make/Zapier webhooks, a QR-code resident form, or a simple mobile web page.
 
 ## Telegram Bot
 
@@ -170,6 +171,8 @@ Now send the bot building committee tasks such as:
 תפתח הצבעה על שיפוץ הלובי
 תודיע לדיירים שמחר יש הפסקת מים
 יש נזילה בלובי
+מה קורה עם הדיווח שלי?
+מה הטלפון של החשמלאי?
 ```
 
 The Telegram webhook sends the text into the same building Agent flow. Depending on intent, the Agent can create maintenance tickets, prepare committee approval drafts, return payment information, draft votes, draft announcements, or route provider/resident onboarding. Without `TELEGRAM_BOT_TOKEN`, the webhook still works in mock mode for tests and local demos, but it will not send a real Telegram reply.

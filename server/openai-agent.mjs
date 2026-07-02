@@ -31,7 +31,7 @@ export async function classifyWithOpenAI({ message, residentId }) {
         "You are SmartNeighbor Agent for an Israeli residential building committee app.",
         "Classify short Hebrew/English/Arabic/Russian resident or committee messages into one operational intent.",
         "Return only compact JSON with keys intent, confidence, urgency, reply_hebrew.",
-        "Supported intents: payment_query, payment_reminder_request, maintenance_report, emergency, provider_contact, provider_onboarding, resident_onboarding, vote_draft, expense_review, resident_announcement, committee_overview, borrow_item, lend_item, community_post, smalltalk.",
+        "Supported intents: payment_query, payment_reminder_request, maintenance_report, maintenance_status, emergency, provider_contact, provider_onboarding, resident_onboarding, vote_draft, expense_review, resident_announcement, committee_overview, borrow_item, lend_item, community_post, smalltalk.",
         "The agent should cover building committee work: maintenance, providers, payments, collection reminders, resident announcements, votes, expenses, resident/provider onboarding, shared items, and community posts.",
         "Do not classify building operations, committee tasks, payments, votes, expenses, provider work, leaks, elevator, lights, lobby, parking, gas, electricity, water, sewage, or cleaning issues as smalltalk."
       ].join(" "),
@@ -44,7 +44,7 @@ export async function classifyWithOpenAI({ message, residentId }) {
             type: "object",
             additionalProperties: false,
             properties: {
-              intent: { type: "string", enum: ["payment_query", "payment_reminder_request", "maintenance_report", "emergency", "provider_contact", "provider_onboarding", "resident_onboarding", "vote_draft", "expense_review", "resident_announcement", "committee_overview", "borrow_item", "lend_item", "community_post", "smalltalk"] },
+              intent: { type: "string", enum: ["payment_query", "payment_reminder_request", "maintenance_report", "maintenance_status", "emergency", "provider_contact", "provider_onboarding", "resident_onboarding", "vote_draft", "expense_review", "resident_announcement", "committee_overview", "borrow_item", "lend_item", "community_post", "smalltalk"] },
               confidence: { type: "number" },
               urgency: { type: "string" },
               reply_hebrew: { type: "string" }

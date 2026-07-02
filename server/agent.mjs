@@ -4,10 +4,13 @@ import { classifyWithOpenAI } from "./openai-agent.mjs";
 
 const emergencyWords = ["גז", "שריפה", "עשן", "הצפה", "חשמל חשוף", "מסוכן", "פציעה"];
 const maintenanceWords = ["תקלה", "נזילה", "מעלית", "נורה", "לחות", "ריח", "חניון", "לובי", "חשמל", "מים", "ביוב"];
+const maintenanceProblemWords = ["תקלה", "בעיה", "נזילה", "נוזל", "רטיבות", "לחות", "ריח", "שרוף", "שרופה", "לא עובד", "לא עובדת", "תקוע", "תקועה", "שבור", "שבורה", "הצפה", "ביוב", "מלוכלך", "מסוכן"];
+const maintenanceStatusWords = ["סטטוס תקלה", "סטטוס הקריאה", "מה קורה עם הדיווח", "מה עם הדיווח", "הדיווח שלי", "הקריאה שלי", "טיקט", "קריאת שירות"];
 const paymentWords = ["לשלם", "תשלום", "ועד", "חייב", "חוב", "שילמתי"];
 const borrowWords = ["להשאיל", "מלווה", "צריך", "לשאול", "מקדחה", "סולם"];
 const lendWords = ["יש לי", "מוסיף", "יכול להשאיל", "להשאלה"];
-const providerWords = ["ספק", "טכנאי", "בעל מקצוע", "איש מקצוע", "אינסטלטור", "חשמלאי", "גנן", "ניקיון", "טלפון"];
+const providerWords = ["ספק", "טכנאי", "בעל מקצוע", "איש מקצוע", "אינסטלטור", "חשמלאי", "גנן", "ניקיון", "מעליות", "מעלית", "טלפון"];
+const providerContactWords = ["מי", "טלפון", "מספר", "פרטי קשר", "איך יוצרים קשר", "איך מתקשרים", "מה השם", "מי הספק", "מי מטפל", "תן לי"];
 const serviceRequestWords = ["צריך", "צריכה", "צריכים", "צריכות", "להזמין", "תזמינו", "אפשר טכנאי"];
 const committeeSummaryWords = ["מצב ועד", "מצב הועד", "מצב בניין", "מצב הבניין", "סיכום", "דוח", "סטטוס", "תמונת מצב", "מה קורה בבניין"];
 const paymentReminderWords = ["תזכורת תשלום", "תזכיר תשלום", "שלח תזכורת", "גבייה", "גביה", "מאחרים", "איחור תשלום"];
@@ -79,6 +82,16 @@ function isServiceRequest(text) {
   return includesAny(text, serviceRequestWords) && includesAny(text, providerWords);
 }
 
+function isProviderContactRequest(text) {
+  return includesAny(text, providerWords) && includesAny(text, providerContactWords);
+}
+
+function isMaintenanceReport(text) {
+  return includesAny(text, emergencyWords)
+    || includesAny(text, maintenanceProblemWords)
+    || (includesAny(text, maintenanceWords) && includesAny(text, serviceRequestWords));
+}
+
 function extractTopic(text) {
   const cleaned = text.replace(/\s+/g, " ").trim();
   const topic = cleaned.split(" על ").at(-1);
@@ -98,6 +111,24 @@ function committeeCapabilitiesReply() {
     "אני SmartNeighbor Agent של ועד הבית.",
     "אפשר לבקש ממני: לפתוח ולטפל בתקלות, למצוא ספקים, לבדוק גבייה ותשלומים, להכין תזכורות לדיירים, לנסח הודעות, לפתוח טיוטת הצבעה, לרשום ספק או דייר חדש, ולעשות סיכום מצב לוועד."
   ].join(" ");
+}
+
+function maintenanceStatusReply() {
+  const openTickets = tickets.filter((ticket) => ticket.status !== "closed");
+  const latest = openTickets[0];
+  if (!latest) {
+    return {
+      intent: "maintenance_status",
+      reply: "אין כרגע קריאות תחזוקה פתוחות בבניין.",
+      actions: [{ type: "maintenance_status", openTickets: 0 }]
+    };
+  }
+
+  return {
+    intent: "maintenance_status",
+    reply: `יש ${openTickets.length} קריאות תחזוקה פתוחות. האחרונה: ${latest.id} - ${latest.title}, סטטוס: ${latest.status}, מיקום: ${latest.location}.`,
+    actions: [{ type: "maintenance_status", openTickets: openTickets.length, latestTicketId: latest.id }]
+  };
 }
 
 async function persistAgentActions(result, { text, residentId }) {
@@ -128,6 +159,7 @@ async function persistAgentActions(result, { text, residentId }) {
     reply: result.reply
       .replace("פתחתי טיוטת קריאת תחזוקה", `פתחתי קריאת תחזוקה ${ticket.id}`)
       .replace("פתחתי טיוטת קריאת P0", `פתחתי קריאת חירום ${ticket.id}`)
+      .replace(' לאישור סופי אפשר לצרף תמונה או לשלוח "אשר".', " הקריאה כבר מופיעה ברשימת התחזוקה, ואפשר לצרף תמונה לעדכון.")
   };
 }
 
@@ -166,6 +198,10 @@ export function handleAgentMessage({ message, residentId = "res-1" }) {
         ? [{ type: "payment_reminder_draft", paymentIds: latePayments.map((payment) => payment.id), requiresRole: "committee" }]
         : []
     };
+  }
+
+  if (includesAny(normalized, maintenanceStatusWords)) {
+    return maintenanceStatusReply();
   }
 
   if (includesAny(normalized, voteWords)) {
@@ -209,6 +245,15 @@ export function handleAgentMessage({ message, residentId = "res-1" }) {
     };
   }
 
+  if (isProviderContactRequest(normalized) && !includesAny(normalized, maintenanceProblemWords)) {
+    const provider = findProvider(normalized);
+    return {
+      intent: "provider_contact",
+      reply: `הספק המתאים הוא ${provider.name}, תחום: ${provider.domain}, טלפון: ${provider.phone}, דירוג: ${provider.rating}/5. אם תרצה, אפשר גם לפתוח קריאת תחזוקה מסודרת.`,
+      actions: [{ type: "provider_contact", providerId: provider.id }]
+    };
+  }
+
   if (includesAny(normalized, paymentWords)) {
     if (resident.balanceDue > 0) {
       return {
@@ -228,7 +273,7 @@ export function handleAgentMessage({ message, residentId = "res-1" }) {
     };
   }
 
-  if (includesAny(normalized, maintenanceWords) || includesAny(normalized, emergencyWords) || isServiceRequest(normalized)) {
+  if (isMaintenanceReport(normalized) || isServiceRequest(normalized)) {
     const priority = classifyPriority(normalized);
     const location = extractLocation(normalized);
     const provider = findProvider(normalized);

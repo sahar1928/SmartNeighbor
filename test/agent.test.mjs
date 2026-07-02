@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handleAgentMessage } from "../server/agent.mjs";
+import { handleAgentMessage, handleAgentMessageAsync } from "../server/agent.mjs";
 
 test("detects emergency maintenance reports", () => {
   const result = handleAgentMessage({ message: "יש ריח גז בחדר מדרגות בקומה ג" });
@@ -26,6 +26,30 @@ test("routes generic technician requests to maintenance", () => {
   assert.equal(result.intent, "maintenance_report");
   assert.equal(result.actions[0].type, "ticket_draft");
   assert.equal(result.actions[0].providerId, "prov-2");
+});
+
+test("answers provider contact questions without opening maintenance reports", () => {
+  const result = handleAgentMessage({ message: "מה הטלפון של החשמלאי?" });
+  assert.equal(result.intent, "provider_contact");
+  assert.equal(result.actions[0].type, "provider_contact");
+  assert.equal(result.actions.some((action) => action.type === "ticket_draft"), false);
+  assert.match(result.reply, /טלפון/);
+});
+
+test("answers maintenance status questions instead of treating them as community posts", () => {
+  const result = handleAgentMessage({ message: "מה קורה עם הדיווח שלי?" });
+  assert.equal(result.intent, "maintenance_status");
+  assert.equal(result.actions[0].type, "maintenance_status");
+  assert.match(result.reply, /קריאות תחזוקה|אין כרגע/);
+});
+
+test("persisted maintenance reports use final ticket wording", async () => {
+  const result = await handleAgentMessageAsync({ message: "יש נזילה בלובי", residentId: "res-1" });
+  assert.equal(result.intent, "maintenance_report");
+  assert.equal(result.actions.some((action) => action.type === "ticket_created"), true);
+  assert.match(result.reply, /פתחתי קריאת תחזוקה T-/);
+  assert.doesNotMatch(result.reply, /טיוטת/);
+  assert.doesNotMatch(result.reply, /לאישור סופי/);
 });
 
 test("keeps shared item requests separate from technician requests", () => {
